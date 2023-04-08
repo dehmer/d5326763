@@ -95,14 +95,15 @@ class Target extends Disposable {
       evt.target = this.eventTarget_ || this;
     }
     const dispatching = this.dispatching_ || (this.dispatching_ = {});
-    const pendingRemovals =
-      this.pendingRemovals_ || (this.pendingRemovals_ = {});
+    const pendingRemovals = this.pendingRemovals_ || (this.pendingRemovals_ = {});
     if (!(type in dispatching)) {
       dispatching[type] = 0;
       pendingRemovals[type] = 0;
     }
+
     ++dispatching[type];
     let propagate;
+
     for (let i = 0, ii = listeners.length; i < ii; ++i) {
       if ('handleEvent' in listeners[i]) {
         propagate = /** @type {import("../events.js").ListenerObject} */ (
@@ -113,11 +114,14 @@ class Target extends Disposable {
           listeners[i]
         ).call(this, evt);
       }
+
+      // FIXME: a3d11fcc - Redundancy: Return value vs. modified actual parameter.
       if (propagate === false || evt.propagationStopped) {
         propagate = false;
         break;
       }
     }
+
     if (--dispatching[type] === 0) {
       let pr = pendingRemovals[type];
       delete pendingRemovals[type];
@@ -126,6 +130,7 @@ class Target extends Disposable {
       }
       delete dispatching[type];
     }
+    
     return propagate;
   }
 

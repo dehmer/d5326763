@@ -36,6 +36,28 @@ import {easeOut, linear} from '../easing.js';
  * by a keyboard event not a button element event.
  * Although interactions do not have a DOM element, some of them do render
  * vectors and so are visible on the screen.
+ * 
+ * Implemented by
+ * @type {<import("./DoubleClickZoom.js")}
+ * @type {<import("./DragAndDrop.js")}
+ * @type {<import("./KeyboardPan.js")}
+ * @type {<import("./KeyboardZoom.js")}
+ * @type {<import("./Link.js")}
+ * @type {<import("./MouseWheelZoom.js")}
+ * @type {<import("./Select.js")}
+ * @type {<import("./Pointer.js")}
+ *    @type {<import("./DragBox.js")}
+ *    @type {<import("./DragPan.js")}
+ *    @type {<import("./DragRotateAndZoom.js")}
+ *    @type {<import("./DragRotate.js")}
+ *    @type {<import("./Draw.js")}
+ *    @type {<import("./Extent.js")}
+ *    @type {<import("./Modify.js")}
+ *    @type {<import("./PinchRotate.js")}
+ *    @type {<import("./PinchZoom.js")}
+ *    @type {<import("./Snap.js")}
+ *    @type {<import("./Translate.js")}
+ * 
  * @api
  */
 class Interaction extends BaseObject {

@@ -437,6 +437,7 @@ class Map extends BaseObject {
      */
     this.controls = optionsInternal.controls || defaultControls();
 
+    // FIXME: 4a358b62 - Cyclic dependency Map/Interaction.
     /**
      * @type {Collection<import("./interaction/Interaction.js").default>}
      * @protected
@@ -1138,9 +1139,15 @@ class Map extends BaseObject {
         return;
       }
     }
+
     mapBrowserEvent.frameState = this.frameState_;
+
+    // Dispatch event to (Target) listeners first:
     if (this.dispatchEvent(mapBrowserEvent) !== false) {
       const interactionsArray = this.getInteractions().getArray().slice();
+
+      // FIXME: cc20795b - Behavior should not depend on interaction order.
+      // Note: Events is handled from last interaction to first.
       for (let i = interactionsArray.length - 1; i >= 0; i--) {
         const interaction = interactionsArray[i];
         if (
@@ -1150,8 +1157,12 @@ class Map extends BaseObject {
         ) {
           continue;
         }
+
+        // FIXME: 51533aee - Modifying actual parameter is certainly not OK (mapBrowserEvent).
+        // FIXME: a3d11fcc - Redundancy: Return value vs. modified actual parameter.
         const cont = interaction.handleEvent(mapBrowserEvent);
         if (!cont || mapBrowserEvent.propagationStopped) {
+          // FIXME: c675810f - Which use cases may swallow events mid-flight?
           break;
         }
       }
@@ -1836,5 +1847,6 @@ function createOptionsInternal(options) {
     overlays: overlays,
     values: values,
   };
-}
+} // createOptionsInternal()
+
 export default Map;

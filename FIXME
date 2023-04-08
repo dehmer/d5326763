@@ -1,0 +1,5 @@
+4a358b62 - Cyclic dependency Map/Interaction.
+51533aee - Modifying actual parameter is certainly not OK (mapBrowserEvent).
+cc20795b - Behavior should not depend on interaction order.
+c675810f - Which use cases may swallow events mid-flight?
+a3d11fcc - Redundancy: Return value vs. modified actual parameter.
