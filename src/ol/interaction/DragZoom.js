@@ -1,6 +1,5 @@
-/**
- * @module ol/interaction/DragZoom
- */
+import flyd from 'flyd'
+import { lazy } from './flyd'
 import DragBox from './DragBox.js';
 import {easeOut} from '../easing.js';
 import {shiftKeyOnly} from '../events/condition.js';
@@ -55,26 +54,33 @@ class DragZoom extends DragBox {
      * @type {boolean}
      */
     this.out_ = options.out !== undefined ? options.out : false;
+
+    this.$map = flyd.stream()
+    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
+    this.$rotatedExtentForGeometry = flyd.combine($view => $view().rotatedExtentForGeometry.bind($view()), [this.$view])
+    this.$getResolutionForExtentInternal = flyd.combine($view => $view().getResolutionForExtentInternal.bind($view()), [this.$view])
+    this.$getResolution = flyd.combine($view => $view().getResolution.bind($view()), [this.$view])
+    this.$fitInternal = flyd.combine($view => $view().fitInternal.bind($view()), [this.$view])
   }
 
   /**
    * Function to execute just before `onboxend` is fired
-   * @param {import("../MapBrowserEvent.js").default} event Event.
+   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    */
-  onBoxEnd(event) {
-    const map = this.getMap();
-    const view = /** @type {!import("../View.js").default} */ (map.getView());
+  onBoxEnd(mapBrowserEvent) {
+    this.$map(mapBrowserEvent.map)
+
     let geometry = this.getGeometry();
 
     if (this.out_) {
-      const rotatedExtent = view.rotatedExtentForGeometry(geometry);
-      const resolution = view.getResolutionForExtentInternal(rotatedExtent);
-      const factor = view.getResolution() / resolution;
+      const rotatedExtent = this.$rotatedExtentForGeometry()(geometry);
+      const resolution = this.$getResolutionForExtentInternal()(rotatedExtent);
+      const factor = this.$getResolution()() / resolution;
       geometry = geometry.clone();
       geometry.scale(factor * factor);
     }
 
-    view.fitInternal(geometry, {
+    this.$fitInternal()(geometry, {
       duration: this.duration_,
       easing: easeOut,
     });

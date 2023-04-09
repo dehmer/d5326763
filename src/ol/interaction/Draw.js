@@ -1,6 +1,5 @@
-/**
- * @module ol/interaction/Draw
- */
+import flyd from 'flyd'
+import { lazy } from './flyd'
 import Circle from '../geom/Circle.js';
 import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
@@ -40,66 +39,8 @@ import {
 } from '../coordinate.js';
 import {fromUserCoordinate, getUserProjection} from '../proj.js';
 import {getStrideForLayout} from '../geom/SimpleGeometry.js';
+import { action_destroyer } from 'svelte/internal';
 
-/**
- * @typedef {Object} Options
- * @property {import("../geom/Geometry.js").Type} type Geometry type of
- * the geometries being drawn with this instance.
- * @property {number} [clickTolerance=6] The maximum distance in pixels between
- * "down" and "up" for a "up" event to be considered a "click" event and
- * actually add a point/vertex to the geometry being drawn.  The default of `6`
- * was chosen for the draw interaction to behave correctly on mouse as well as
- * on touch devices.
- * @property {import("../Collection.js").default<Feature>} [features]
- * Destination collection for the drawn features.
- * @property {VectorSource} [source] Destination source for
- * the drawn features.
- * @property {number} [dragVertexDelay=500] Delay in milliseconds after pointerdown
- * before the current vertex can be dragged to its exact position.
- * @property {number} [snapTolerance=12] Pixel distance for snapping to the
- * drawing finish. Must be greater than `0`.
- * @property {boolean} [stopClick=false] Stop click, singleclick, and
- * doubleclick events from firing during drawing.
- * @property {number} [maxPoints] The number of points that can be drawn before
- * a polygon ring or line string is finished. By default there is no
- * restriction.
- * @property {number} [minPoints] The number of points that must be drawn
- * before a polygon ring or line string can be finished. Default is `3` for
- * polygon rings and `2` for line strings.
- * @property {import("../events/condition.js").Condition} [finishCondition] A function
- * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
- * boolean to indicate whether the drawing can be finished. Not used when drawing
- * POINT or MULTI_POINT geometries.
- * @property {import("../style/Style.js").StyleLike|import("../style/flat.js").FlatStyleLike} [style]
- * Style for sketch features.
- * @property {GeometryFunction} [geometryFunction]
- * Function that is called when a geometry's coordinates are updated.
- * @property {string} [geometryName] Geometry name to use for features created
- * by the draw interaction.
- * @property {import("../events/condition.js").Condition} [condition] A function that
- * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
- * boolean to indicate whether that event should be handled.
- * By default {@link module:ol/events/condition.noModifierKeys}, i.e. a click,
- * adds a vertex or deactivates freehand drawing.
- * @property {boolean} [freehand=false] Operate in freehand mode for lines,
- * polygons, and circles.  This makes the interaction always operate in freehand
- * mode and takes precedence over any `freehandCondition` option.
- * @property {import("../events/condition.js").Condition} [freehandCondition]
- * Condition that activates freehand drawing for lines and polygons. This
- * function takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and
- * returns a boolean to indicate whether that event should be handled. The
- * default is {@link module:ol/events/condition.shiftKeyOnly}, meaning that the
- * Shift key activates freehand drawing.
- * @property {boolean|import("../events/condition.js").Condition} [trace=false] Trace a portion of another geometry.
- * Ignored when in freehand mode.
- * @property {VectorSource} [traceSource] Source for features to trace.  If tracing is active and a `traceSource` is
- * not provided, the interaction's `source` will be used.  Tracing requires that the interaction is configured with
- * either a `traceSource` or a `source`.
- * @property {boolean} [wrapX=false] Wrap the world horizontally on the sketch
- * overlay.
- * @property {import("../geom/Geometry.js").GeometryLayout} [geometryLayout='XY'] Layout of the
- * feature geometries created by the draw interaction.
- */
 
 /**
  * Coordinate type when drawing points.
@@ -923,8 +864,25 @@ class Draw extends PointerInteraction {
      */
     this.traceSource_ = options.traceSource || options.source || null;
 
-    this.addChangeListener(InteractionProperty.ACTIVE, this.updateState_);
-  }
+    this.$active = flyd.stream(true) // stream with initial value `true`
+    this.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
+
+    this.$map = flyd.stream()
+    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
+    this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
+    this.$getPixelFromCoordinate = flyd.combine($map => $map().getPixelFromCoordinate.bind($map()), [this.$map])
+    this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
+
+    // Optimization: Only update streams if values are (referentially) different:
+    this.$uniqMap = flyd.combine(lazy($map => $map()), [this.$map])
+    this.$uniqActive = flyd.combine(lazy($active => $active()), [this.$active])
+
+    // Side-effect:
+    flyd.combine(($map, $active) => {
+      if (!$map() || !$active()) this.abortDrawing()      
+      this.overlay_.setMap($active() ? $map() : null)
+    }, [this.$uniqMap, this.$uniqActive])
+  } // constructor
 
   /**
    * Toggle tracing mode or set a tracing condition.
@@ -944,11 +902,6 @@ class Draw extends PointerInteraction {
     this.traceCondition_ = condition;
   }
 
-  setMap(map) {
-    super.setMap(map);
-    this.updateState_();
-  }
-
   /**
    * Get the overlay layer that this interaction renders sketch features to.
    * @return {VectorLayer} Overlay layer.
@@ -958,13 +911,9 @@ class Draw extends PointerInteraction {
     return this.overlay_;
   }
 
-  /**
-   * Handles the {@link module:ol/MapBrowserEvent~MapBrowserEvent map browser event} and may actually draw or finish the drawing.
-   * @param {import("../MapBrowserEvent.js").default} event Map browser event.
-   * @return {boolean} `false` to stop event propagation.
-   * @api
-   */
   handleEvent(event) {
+    this.$map(event.map)
+
     if (event.originalEvent.type === EventType.CONTEXTMENU) {
       // Avoid context menu for long taps when drawing on mobile
       event.originalEvent.preventDefault();
@@ -1030,6 +979,7 @@ class Draw extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleDownEvent(event) {
+    this.$map(event.map)
     this.shouldHandle_ = !this.freehand_;
 
     if (this.freehand_) {
@@ -1083,12 +1033,11 @@ class Draw extends PointerInteraction {
       return;
     }
 
-    const map = this.getMap();
-    const lowerLeft = map.getCoordinateFromPixel([
+    const lowerLeft = this.$getCoordinateFromPixel()([
       event.pixel[0] - this.snapTolerance_,
       event.pixel[1] + this.snapTolerance_,
     ]);
-    const upperRight = map.getCoordinateFromPixel([
+    const upperRight = this.$getCoordinateFromPixel()([
       event.pixel[0] + this.snapTolerance_,
       event.pixel[1] - this.snapTolerance_,
     ]);
@@ -1235,7 +1184,7 @@ class Draw extends PointerInteraction {
     const updatedTraceTarget = getTraceTargetUpdate(
       event.coordinate,
       traceState,
-      this.getMap(),
+      this.$map(),
       this.snapTolerance_
     );
 
@@ -1269,7 +1218,8 @@ class Draw extends PointerInteraction {
       target.coordinates,
       target.endIndex
     );
-    const pixel = this.getMap().getPixelFromCoordinate(coordinate);
+
+    const pixel = this.$getPixelFromCoordinate()(coordinate);
     event.coordinate = coordinate;
     event.pixel = [Math.round(pixel[0]), Math.round(pixel[1])];
   }
@@ -1280,6 +1230,7 @@ class Draw extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleUpEvent(event) {
+    this.$map(event.map)
     let pass = true;
 
     if (this.getPointerCount() === 0) {
@@ -1323,11 +1274,6 @@ class Draw extends PointerInteraction {
     return pass;
   }
 
-  /**
-   * Handle move events.
-   * @param {import("../MapBrowserEvent.js").default} event A move event.
-   * @private
-   */
   handlePointerMove_(event) {
     this.pointerType_ = event.originalEvent.pointerType;
     if (
@@ -1394,10 +1340,9 @@ class Draw extends PointerInteraction {
         }
       }
       if (potentiallyDone) {
-        const map = this.getMap();
         for (let i = 0, ii = potentiallyFinishCoordinates.length; i < ii; i++) {
           const finishCoordinate = potentiallyFinishCoordinates[i];
-          const finishPixel = map.getPixelFromCoordinate(finishCoordinate);
+          const finishPixel = this.$getPixelFromCoordinate()(finishCoordinate);
           const dx = pixel[0] - finishPixel[0];
           const dy = pixel[1] - finishPixel[1];
           const snapTolerance = this.freehand_ ? 1 : this.snapTolerance_;
@@ -1457,7 +1402,6 @@ class Draw extends PointerInteraction {
    * @private
    */
   startDrawing_(start) {
-    const projection = this.getMap().getView().getProjection();
     const stride = getStrideForLayout(this.geometryLayout_);
     while (start.length < stride) {
       start.push(0);
@@ -1477,7 +1421,7 @@ class Draw extends PointerInteraction {
     const geometry = this.geometryFunction_(
       this.sketchCoords_,
       undefined,
-      projection
+      this.$projection()
     );
     this.sketchFeature_ = new Feature();
     if (this.geometryName_) {
@@ -1496,9 +1440,7 @@ class Draw extends PointerInteraction {
    * @private
    */
   modifyDrawing_(coordinate) {
-    const map = this.getMap();
     const geometry = this.sketchFeature_.getGeometry();
-    const projection = map.getView().getProjection();
     const stride = getStrideForLayout(this.geometryLayout_);
     let coordinates, last;
     while (coordinate.length < stride) {
@@ -1509,7 +1451,7 @@ class Draw extends PointerInteraction {
     } else if (this.mode_ === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       last = coordinates[coordinates.length - 1];
-      if (this.atFinish_(map.getPixelFromCoordinate(coordinate))) {
+      if (this.atFinish_(this.$getPixelFromCoordinate()(coordinate))) {
         // snap to finish
         coordinate = this.finishCoordinate_.slice();
       }
@@ -1522,7 +1464,7 @@ class Draw extends PointerInteraction {
     this.geometryFunction_(
       /** @type {!LineCoordType} */ (this.sketchCoords_),
       geometry,
-      projection
+      this.$projection()
     );
     if (this.sketchPoint_) {
       const sketchPointGeom = this.sketchPoint_.getGeometry();
@@ -1544,7 +1486,6 @@ class Draw extends PointerInteraction {
    */
   addToDrawing_(coordinate) {
     const geometry = this.sketchFeature_.getGeometry();
-    const projection = this.getMap().getView().getProjection();
     let done;
     let coordinates;
     const mode = this.mode_;
@@ -1559,7 +1500,7 @@ class Draw extends PointerInteraction {
         }
       }
       coordinates.push(coordinate.slice());
-      this.geometryFunction_(coordinates, geometry, projection);
+      this.geometryFunction_(coordinates, geometry, this.$projection());
     } else if (mode === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       if (coordinates.length >= this.maxPoints_) {
@@ -1573,7 +1514,7 @@ class Draw extends PointerInteraction {
       if (done) {
         this.finishCoordinate_ = coordinates[0];
       }
-      this.geometryFunction_(this.sketchCoords_, geometry, projection);
+      this.geometryFunction_(this.sketchCoords_, geometry, this.$projection());
     }
     this.createOrUpdateSketchPoint_(coordinate.slice());
     this.updateSketchFeatures_();
@@ -1590,7 +1531,6 @@ class Draw extends PointerInteraction {
       return;
     }
     const geometry = this.sketchFeature_.getGeometry();
-    const projection = this.getMap().getView().getProjection();
     const mode = this.mode_;
     for (let i = 0; i < n; ++i) {
       let coordinates;
@@ -1603,7 +1543,7 @@ class Draw extends PointerInteraction {
           coordinates[coordinates.length - 1] = finishCoordinate;
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
-        this.geometryFunction_(coordinates, geometry, projection);
+        this.geometryFunction_(coordinates, geometry, this.$projection());
         if (geometry.getType() === 'Polygon' && this.sketchLine_) {
           this.createOrUpdateCustomSketchLine_(
             /** @type {Polygon} */ (geometry)
@@ -1619,7 +1559,7 @@ class Draw extends PointerInteraction {
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
         sketchLineGeom.setCoordinates(coordinates);
-        this.geometryFunction_(this.sketchCoords_, geometry, projection);
+        this.geometryFunction_(this.sketchCoords_, geometry, this.$projection());
       }
 
       if (coordinates.length === 1) {
@@ -1653,15 +1593,14 @@ class Draw extends PointerInteraction {
     }
     let coordinates = this.sketchCoords_;
     const geometry = sketchFeature.getGeometry();
-    const projection = this.getMap().getView().getProjection();
     if (this.mode_ === 'LineString') {
       // remove the redundant last point
       coordinates.pop();
-      this.geometryFunction_(coordinates, geometry, projection);
+      this.geometryFunction_(coordinates, geometry, this.$projection());
     } else if (this.mode_ === 'Polygon') {
       // remove the redundant last point in ring
       /** @type {PolyCoordType} */ (coordinates)[0].pop();
-      this.geometryFunction_(coordinates, geometry, projection);
+      this.geometryFunction_(coordinates, geometry, this.$projection());
       coordinates = geometry.getCoordinates();
     }
 
@@ -1810,18 +1749,6 @@ class Draw extends PointerInteraction {
     const overlaySource = this.overlay_.getSource();
     overlaySource.clear(true);
     overlaySource.addFeatures(sketchFeatures);
-  }
-
-  /**
-   * @private
-   */
-  updateState_() {
-    const map = this.getMap();
-    const active = this.getActive();
-    if (!map || !active) {
-      this.abortDrawing();
-    }
-    this.overlay_.setMap(active ? map : null);
   }
 }
 
