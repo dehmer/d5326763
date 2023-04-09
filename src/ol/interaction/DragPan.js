@@ -80,8 +80,18 @@ class DragPan extends PointerInteraction {
      */
     this.noKinetic_ = false;
 
+    // Only update value of combined stream if single dependency value changed.
+    const lazy = fn => {
+      let last // last known value
+      return s => {
+        if (last === s()) return undefined // don't update combined stream
+        last = s() // cache and ...
+        return fn(s) // get next value
+      }
+    }
+
     this.$map = flyd.stream()
-    this.$view = flyd.combine($map => $map().getView(), [this.$map])
+    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
     this.$getEventPixel = flyd.combine($map => $map().getEventPixel.bind($map()), [this.$map])
     this.$getPixelFromCoordinateInternal = flyd.combine($map => $map().getPixelFromCoordinateInternal.bind($map()), [this.$map])
     this.$getCoordinateFromPixelInternal = flyd.combine($map => $map().getCoordinateFromPixelInternal.bind($map()), [this.$map])
