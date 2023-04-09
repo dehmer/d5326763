@@ -24,6 +24,7 @@
     "serve": "webpack serve --static public"
   },
   "dependencies": {
+    "flyd": "^0.2.8",
     "ol": "^7.3.0"
   }
 }

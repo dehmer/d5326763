@@ -1,6 +1,4 @@
-/**
- * @module ol/interaction/DragPan
- */
+import flyd from 'flyd'
 import PointerInteraction, {
   centroid as centroidFromPointers,
 } from './Pointer.js';
@@ -81,6 +79,22 @@ class DragPan extends PointerInteraction {
      * @type {boolean}
      */
     this.noKinetic_ = false;
+
+    this.$map = flyd.stream()
+    this.$view = flyd.combine($map => $map().getView(), [this.$map])
+    this.$getEventPixel = flyd.combine($map => $map().getEventPixel.bind($map()), [this.$map])
+    this.$getPixelFromCoordinateInternal = flyd.combine($map => $map().getPixelFromCoordinateInternal.bind($map()), [this.$map])
+    this.$getCoordinateFromPixelInternal = flyd.combine($map => $map().getCoordinateFromPixelInternal.bind($map()), [this.$map])
+    this.$beginInteraction = flyd.combine($view => $view().beginInteraction.bind($view()), [this.$view])
+    this.$endInteraction = flyd.combine($view => $view().endInteraction.bind($view()), [this.$view])
+    this.$getResolution = flyd.combine($view => $view().getResolution.bind($view()), [this.$view])
+    this.$getRotation = flyd.combine($view => $view().getRotation.bind($view()), [this.$view])
+    this.$adjustCenterInternal = flyd.combine($view => $view().adjustCenterInternal.bind($view()), [this.$view])
+    this.$getCenterInternal = flyd.combine($view => $view().getCenterInternal.bind($view()), [this.$view])
+    this.$animateInternal = flyd.combine($view => $view().animateInternal.bind($view()), [this.$view])
+    this.$getConstrainedCenter = flyd.combine($view => $view().getConstrainedCenter.bind($view()), [this.$view])
+    this.$getAnimating = flyd.combine($view => $view().getAnimating.bind($view()), [this.$view])
+    this.$cancelAnimations = flyd.combine($view => $view().cancelAnimations.bind($view()), [this.$view])
   }
 
   /**
@@ -88,27 +102,29 @@ class DragPan extends PointerInteraction {
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    */
   handleDragEvent(mapBrowserEvent) {
-    const map = mapBrowserEvent.map;
+    this.$map(mapBrowserEvent.map)
+
     if (!this.panning_) {
       this.panning_ = true;
-      map.getView().beginInteraction();
+      this.$beginInteraction();
     }
+
     const targetPointers = this.targetPointers;
-    const centroid = map.getEventPixel(centroidFromPointers(targetPointers));
+    const centroid = this.$getEventPixel()(centroidFromPointers(targetPointers));
     if (targetPointers.length == this.lastPointersCount_) {
       if (this.kinetic_) {
         this.kinetic_.update(centroid[0], centroid[1]);
       }
+
       if (this.lastCentroid) {
         const delta = [
           this.lastCentroid[0] - centroid[0],
           centroid[1] - this.lastCentroid[1],
         ];
-        const map = mapBrowserEvent.map;
-        const view = map.getView();
-        scaleCoordinate(delta, view.getResolution());
-        rotateCoordinate(delta, view.getRotation());
-        view.adjustCenterInternal(delta);
+
+        scaleCoordinate(delta, this.$getResolution()());
+        rotateCoordinate(delta, this.$getRotation()());
+        this.$adjustCenterInternal()(delta);
       }
     } else if (this.kinetic_) {
       // reset so we don't overestimate the kinetic energy after
@@ -126,35 +142,39 @@ class DragPan extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleUpEvent(mapBrowserEvent) {
-    const map = mapBrowserEvent.map;
-    const view = map.getView();
+    this.$map(mapBrowserEvent.map)
+
     if (this.targetPointers.length === 0) {
       if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
         const distance = this.kinetic_.getDistance();
         const angle = this.kinetic_.getAngle();
-        const center = view.getCenterInternal();
-        const centerpx = map.getPixelFromCoordinateInternal(center);
-        const dest = map.getCoordinateFromPixelInternal([
+        const center = this.$getCenterInternal()();
+        const centerpx = this.$getPixelFromCoordinateInternal()(center);
+        const dest = this.$getCoordinateFromPixelInternal()([
           centerpx[0] - distance * Math.cos(angle),
           centerpx[1] - distance * Math.sin(angle),
         ]);
-        view.animateInternal({
-          center: view.getConstrainedCenter(dest),
+
+        this.$animateInternal()({
+          center: this.$getConstrainedCenter()(dest),
           duration: 500,
           easing: easeOut,
         });
       }
       if (this.panning_) {
         this.panning_ = false;
-        view.endInteraction();
+        this.$endInteraction()();
       }
+
       return false;
     }
+
     if (this.kinetic_) {
       // reset so we don't overestimate the kinetic energy after
       // after one finger up, tiny drag, second finger up
       this.kinetic_.begin();
     }
+
     this.lastCentroid = null;
     return true;
   }
@@ -165,13 +185,13 @@ class DragPan extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleDownEvent(mapBrowserEvent) {
+    this.$map(mapBrowserEvent.map)
+
     if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
-      const map = mapBrowserEvent.map;
-      const view = map.getView();
       this.lastCentroid = null;
       // stop any current animation
-      if (view.getAnimating()) {
-        view.cancelAnimations();
+      if (this.$getAnimating()()) {
+        this.$cancelAnimations()();
       }
       if (this.kinetic_) {
         this.kinetic_.begin();

@@ -38,25 +38,25 @@ import {easeOut, linear} from '../easing.js';
  * vectors and so are visible on the screen.
  * 
  * Implemented by
- * @type {<import("./DoubleClickZoom.js")}
- * @type {<import("./DragAndDrop.js")}
- * @type {<import("./KeyboardPan.js")}
- * @type {<import("./KeyboardZoom.js")}
- * @type {<import("./Link.js")}
- * @type {<import("./MouseWheelZoom.js")}
- * @type {<import("./Select.js")}
+ * @type {<import("./DoubleClickZoom.js")} - getView()
+ * @type {<import("./DragAndDrop.js")} - getView(), getViewport()
+ * @type {<import("./KeyboardPan.js")} - getView()
+ * @type {<import("./KeyboardZoom.js")} - getView()
+ * @type {<import("./Link.js")} - getLayerGroup(), getView(), getAllLayers()
+ * @type {<import("./MouseWheelZoom.js")} - getView()
+ * @type {<import("./Select.js")} - forEachFeatureAtPixel()
  * @type {<import("./Pointer.js")}
- *    @type {<import("./DragBox.js")}
- *    @type {<import("./DragPan.js")}
- *    @type {<import("./DragRotateAndZoom.js")}
- *    @type {<import("./DragRotate.js")}
- *    @type {<import("./Draw.js")}
- *    @type {<import("./Extent.js")}
- *    @type {<import("./Modify.js")}
- *    @type {<import("./PinchRotate.js")}
- *    @type {<import("./PinchZoom.js")}
- *    @type {<import("./Snap.js")}
- *    @type {<import("./Translate.js")}
+ *    @type {<import("./DragBox.js")} - getOverlayContainer(), getCoordinateFromPixelInternal()
+ *    @type {<import("./DragPan.js")} - getView(), getEventPixel(), getPixelFromCoordinateInternal()
+ *    @type {<import("./DragRotateAndZoom.js")} - getSize(), getView()
+ *    @type {<import("./DragRotate.js")} - getSize(), getView()
+ *    @type {<import("./Draw.js")} - getPixelFromCoordinate(), getCoordinateFromPixel(), getView(), render()
+ *    @type {<import("./Extent.js")} - getCoordinateFromPixelInternal(), render()
+ *    @type {<import("./Modify.js")} - isRendered(), getView(), getCoordinateFromPixel(), getPixelFromCoordinate(), forEachFeatureAtPixel(), render()
+ *    @type {<import("./PinchRotate.js")} - getView(), getCoordinateFromPixelInternal(), render()
+ *    @type {<import("./PinchZoom.js")} - getView(), getCoordinateFromPixelInternal(), render()
+ *    @type {<import("./Snap.js")} - getView(), getPixelFromCoordinate()
+ *    @type {<import("./Translate.js")} - getViewport(), forEachFeatureAtPixel()
  * 
  * @api
  */

@@ -75,20 +75,6 @@ const tempSegment = [];
  * Any interaction object that allows the user to interact
  * with the features using the mouse can benefit from the snapping, as long
  * as it is added before.
- *
- * The snap interaction modifies map browser event `coordinate` and `pixel`
- * properties to force the snap to occur to any interaction that them.
- *
- * Example:
- *
- *     import Snap from 'ol/interaction/Snap.js';
- *
- *     const snap = new Snap({
- *       source: source
- *     });
- *
- *     map.addInteraction(snap);
- *
  * @api
  */
 class Snap extends PointerInteraction {
@@ -349,12 +335,6 @@ class Snap extends PointerInteraction {
     }
   }
 
-  /**
-   * Remove the interaction from its current map and attach it to the new map.
-   * Subclasses may set up event handlers to get notified about changes to
-   * the map here.
-   * @param {import("../Map.js").default} map Map.
-   */
   setMap(map) {
     const currentMap = this.getMap();
     const keys = this.featuresListenerKeys_;

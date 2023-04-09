@@ -112,46 +112,6 @@ import {warn} from './console.js';
  *      import("./render/EventType").MapRenderEventTypes, Return>} MapEventHandler
  */
 
-/**
- * Object literal with config options for the map.
- * @typedef {Object} MapOptions
- * @property {Collection<import("./control/Control.js").default>|Array<import("./control/Control.js").default>} [controls]
- * Controls initially added to the map. If not specified,
- * {@link module:ol/control/defaults.defaults} is used.
- * @property {number} [pixelRatio=window.devicePixelRatio] The ratio between
- * physical pixels and device-independent pixels (dips) on the device.
- * @property {Collection<import("./interaction/Interaction.js").default>|Array<import("./interaction/Interaction.js").default>} [interactions]
- * Interactions that are initially added to the map. If not specified,
- * {@link module:ol/interaction/defaults.defaults} is used.
- * @property {HTMLElement|Document|string} [keyboardEventTarget] The element to
- * listen to keyboard events on. This determines when the `KeyboardPan` and
- * `KeyboardZoom` interactions trigger. For example, if this option is set to
- * `document` the keyboard interactions will always trigger. If this option is
- * not specified, the element the library listens to keyboard events on is the
- * map target (i.e. the user-provided div for the map). If this is not
- * `document`, the target element needs to be focused for key events to be
- * emitted, requiring that the target element has a `tabindex` attribute.
- * @property {Array<import("./layer/Base.js").default>|Collection<import("./layer/Base.js").default>|LayerGroup} [layers]
- * Layers. If this is not defined, a map with no layers will be rendered. Note
- * that layers are rendered in the order supplied, so if you want, for example,
- * a vector layer to appear on top of a tile layer, it must come after the tile
- * layer.
- * @property {number} [maxTilesLoading=16] Maximum number tiles to load
- * simultaneously.
- * @property {number} [moveTolerance=1] The minimum distance in pixels the
- * cursor must move to be detected as a map move event instead of a click.
- * Increasing this value can make it easier to click on the map.
- * @property {Collection<import("./Overlay.js").default>|Array<import("./Overlay.js").default>} [overlays]
- * Overlays initially added to the map. By default, no overlays are added.
- * @property {HTMLElement|string} [target] The container for the map, either the
- * element itself or the `id` of the element. If not specified at construction
- * time, {@link module:ol/Map~Map#setTarget} must be called for the map to be
- * rendered. If passed by element, the container can be in a secondary document.
- * **Note:** CSS `transform` support for the target element is limited to `scale`.
- * @property {View|Promise<import("./View.js").ViewOptions>} [view] The map's view.  No layer sources will be
- * fetched unless this is specified at construction time or through
- * {@link module:ol/Map~Map#setView}.
- */
 
 /**
  * @param {import("./layer/Base.js").default} layer Layer.
@@ -595,15 +555,6 @@ class Map extends BaseObject {
     this.getControls().push(control);
   }
 
-  /**
-   * Add the given interaction to the map. If you want to add an interaction
-   * at another point of the collection use `getInteractions()` and the methods
-   * available on {@link module:ol/Collection~Collection}. This can be used to
-   * stop the event propagation from the handleEvent function. The interactions
-   * get to handle the events in the reverse order of this collection.
-   * @param {import("./interaction/Interaction.js").default} interaction Interaction to add.
-   * @api
-   */
   addInteraction(interaction) {
     this.getInteractions().push(interaction);
   }
@@ -903,14 +854,6 @@ class Map extends BaseObject {
     return overlay !== undefined ? overlay : null;
   }
 
-  /**
-   * Get the map interactions. Modifying this collection changes the interactions
-   * associated with the map.
-   *
-   * Interactions are used for e.g. pan, zoom and rotate.
-   * @return {Collection<import("./interaction/Interaction.js").default>} Interactions.
-   * @api
-   */
   getInteractions() {
     return this.interactions;
   }

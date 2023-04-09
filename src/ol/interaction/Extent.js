@@ -83,15 +83,6 @@ export class ExtentEvent extends Event {
  *     'change:active'|'extentchanged', Return>} ExtentOnSignature
  */
 
-/**
- * @classdesc
- * Allows the user to draw a vector box by clicking and dragging on the map.
- * Once drawn, the vector box can be modified by dragging its vertices or edges.
- * This interaction is only supported for mouse devices.
- *
- * @fires ExtentEvent
- * @api
- */
 class Extent extends PointerInteraction {
   /**
    * @param {Options} [options] Options.
@@ -209,12 +200,6 @@ class Extent extends PointerInteraction {
     }
   }
 
-  /**
-   * @param {import("../pixel.js").Pixel} pixel cursor location
-   * @param {import("../Map.js").default} map map
-   * @return {import("../coordinate.js").Coordinate|null} snapped vertex on extent
-   * @private
-   */
   snapToVertex_(pixel, map) {
     const pixelCoordinate = map.getCoordinateFromPixelInternal(pixel);
     const sortByDistance = function (a, b) {
@@ -420,12 +405,6 @@ class Extent extends PointerInteraction {
     return false; //Stop handling downup sequence
   }
 
-  /**
-   * Remove the interaction from its current map and attach it to the new map.
-   * Subclasses may set up event handlers to get notified about changes to
-   * the map here.
-   * @param {import("../Map.js").default} map Map.
-   */
   setMap(map) {
     this.extentOverlay_.setMap(map);
     this.vertexOverlay_.setMap(map);

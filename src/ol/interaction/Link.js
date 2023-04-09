@@ -187,9 +187,6 @@ class Link extends Interaction {
     params.delete(this.getParamName_(name));
   }
 
-  /**
-   * @param {import("../Map.js").default|null} map Map.
-   */
   setMap(map) {
     const oldMap = this.getMap();
     super.setMap(map);
@@ -206,10 +203,6 @@ class Link extends Interaction {
     }
   }
 
-  /**
-   * @param {import("../Map.js").default} map Map.
-   * @private
-   */
   registerListeners_(map) {
     this.listenerKeys_.push(
       listen(map, MapEventType.MOVEEND, this.updateUrl_, this),
@@ -222,10 +215,6 @@ class Link extends Interaction {
     }
   }
 
-  /**
-   * @param {import("../Map.js").default} map Map.
-   * @private
-   */
   unregisterListeners_(map) {
     for (let i = 0, ii = this.listenerKeys_.length; i < ii; ++i) {
       unlistenByKey(this.listenerKeys_[i]);

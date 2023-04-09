@@ -352,14 +352,6 @@ function appendGeometryTraceTargets(coordinate, geometry, targets) {
  */
 const sharedUpdateInfo = {index: -1, endIndex: NaN};
 
-/**
- * @param {import("../coordinate.js").Coordinate} coordinate The coordinate.
- * @param {TraceState} traceState The trace state.
- * @param {import("../Map.js").default} map The map.
- * @param {number} snapTolerance The snap tolerance.
- * @return {TraceTargetUpdateInfo} Information about the new trace target.  The returned
- * object is reused between calls and must not be modified by the caller.
- */
 function getTraceTargetUpdate(coordinate, traceState, map, snapTolerance) {
   const x = coordinate[0];
   const y = coordinate[1];
@@ -952,12 +944,6 @@ class Draw extends PointerInteraction {
     this.traceCondition_ = condition;
   }
 
-  /**
-   * Remove the interaction from its current map and attach it to the new map.
-   * Subclasses may set up event handlers to get notified about changes to
-   * the map here.
-   * @param {import("../Map.js").default} map Map.
-   */
   setMap(map) {
     super.setMap(map);
     this.updateState_();

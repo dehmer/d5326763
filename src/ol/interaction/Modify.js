@@ -534,12 +534,6 @@ class Modify extends PointerInteraction {
     super.setActive(active);
   }
 
-  /**
-   * Remove the interaction from its current map and attach it to the new map.
-   * Subclasses may set up event handlers to get notified about changes to
-   * the map here.
-   * @param {import("../Map.js").default} map Map.
-   */
   setMap(map) {
     this.overlay_.setMap(map);
     super.setMap(map);

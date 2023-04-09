@@ -1,6 +1,4 @@
-/**
- * @module ol/interaction/DoubleClickZoom
- */
+import flyd from 'flyd'
 import Interaction, {zoomByDelta} from './Interaction.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
 
@@ -35,25 +33,22 @@ class DoubleClickZoom extends Interaction {
      * @type {number}
      */
     this.duration_ = options.duration !== undefined ? options.duration : 250;
+
+    this.$map = flyd.stream()
+    this.$view = flyd.combine($map => $map().getView(), [this.$map])
   }
 
-  /**
-   * Handles the {@link module:ol/MapBrowserEvent~MapBrowserEvent map browser event} (if it was a
-   * doubleclick) and eventually zooms the map.
-   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Map browser event.
-   * @return {boolean} `false` to stop event propagation.
-   */
   handleEvent(mapBrowserEvent) {
+    this.$map(mapBrowserEvent.map)
+
     let stopEvent = false;
     if (mapBrowserEvent.type == MapBrowserEventType.DBLCLICK) {
       const browserEvent = /** @type {MouseEvent} */ (
         mapBrowserEvent.originalEvent
       );
-      const map = mapBrowserEvent.map;
       const anchor = mapBrowserEvent.coordinate;
       const delta = browserEvent.shiftKey ? -this.delta_ : this.delta_;
-      const view = map.getView();
-      zoomByDelta(view, delta, anchor, this.duration_);
+      zoomByDelta(this.$view(), delta, anchor, this.duration_);
       browserEvent.preventDefault();
       stopEvent = true;
     }
