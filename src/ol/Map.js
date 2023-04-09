@@ -463,59 +463,33 @@ class Map extends BaseObject {
 
     this.controls.addEventListener(
       CollectionEventType.ADD,
-      /**
-       * @param {import("./Collection.js").CollectionEvent<import("./control/Control.js").default>} event CollectionEvent
-       */
-      (event) => {
-        event.element.setMap(this);
-      }
+      event => event.element.setMap(this)
     );
 
     this.controls.addEventListener(
       CollectionEventType.REMOVE,
-      /**
-       * @param {import("./Collection.js").CollectionEvent<import("./control/Control.js").default>} event CollectionEvent.
-       */
-      (event) => {
-        event.element.setMap(null);
-      }
+      event => event.element.setMap(null)
     );
 
+    // FIXME: 0b1d83a4 - Map supplied implicitly for most interations.
     this.interactions.addEventListener(
       CollectionEventType.ADD,
-      /**
-       * @param {import("./Collection.js").CollectionEvent<import("./interaction/Interaction.js").default>} event CollectionEvent.
-       */
-      (event) => {
-        event.element.setMap(this);
-      }
+      event => event.element.setMap(this)
     );
 
+    // FIXME: 88ee472a - Detach interaction from map? If so how?
     this.interactions.addEventListener(
       CollectionEventType.REMOVE,
-      /**
-       * @param {import("./Collection.js").CollectionEvent<import("./interaction/Interaction.js").default>} event CollectionEvent.
-       */
-      (event) => {
-        event.element.setMap(null);
-      }
+      event => event.element.setMap(null)
     );
 
     this.overlays_.addEventListener(
       CollectionEventType.ADD,
-      /**
-       * @param {import("./Collection.js").CollectionEvent<import("./Overlay.js").default>} event CollectionEvent.
-       */
-      (event) => {
-        this.addOverlayInternal_(event.element);
-      }
+      event => this.addOverlayInternal_(event.element)
     );
 
     this.overlays_.addEventListener(
       CollectionEventType.REMOVE,
-      /**
-       * @param {import("./Collection.js").CollectionEvent<import("./Overlay.js").default>} event CollectionEvent.
-       */
       (event) => {
         const id = event.element.getId();
         if (id !== undefined) {
@@ -525,24 +499,8 @@ class Map extends BaseObject {
       }
     );
 
-    this.controls.forEach(
-      /**
-       * @param {import("./control/Control.js").default} control Control.
-       */
-      (control) => {
-        control.setMap(this);
-      }
-    );
-
-    this.interactions.forEach(
-      /**
-       * @param {import("./interaction/Interaction.js").default} interaction Interaction.
-       */
-      (interaction) => {
-        interaction.setMap(this);
-      }
-    );
-
+    this.controls.forEach(control => control.setMap(this));
+    this.interactions.forEach(interaction => interaction.setMap(this))
     this.overlays_.forEach(this.addOverlayInternal_.bind(this));
   }
 

@@ -3,3 +3,5 @@
 cc20795b - Behavior should not depend on interaction order.
 c675810f - Which use cases may swallow events mid-flight?
 a3d11fcc - Redundancy: Return value vs. modified actual parameter.
+0b1d83a4 - Map supplied implicitly for most interations.
+88ee472a - Detach interaction from map? If so how?

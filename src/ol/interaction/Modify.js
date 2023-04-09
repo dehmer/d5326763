@@ -1,12 +1,12 @@
-/**
- * @module ol/interaction/Modify
- */
+import flyd from 'flyd'
+import { lazy } from './flyd'
 import Collection from '../Collection.js';
 import CollectionEventType from '../CollectionEventType.js';
 import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
 import Feature from '../Feature.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
+import InteractionProperty from './Property.js';
 import Point from '../geom/Point.js';
 import PointerInteraction from './Pointer.js';
 import RBush from '../structs/RBush.js';
@@ -79,59 +79,6 @@ const ModifyEventType = {
 };
 
 /**
- * @typedef {Object} SegmentData
- * @property {Array<number>} [depth] Depth.
- * @property {Feature} feature Feature.
- * @property {import("../geom/SimpleGeometry.js").default} geometry Geometry.
- * @property {number} [index] Index.
- * @property {Array<Array<number>>} segment Segment.
- * @property {Array<SegmentData>} [featureSegments] FeatureSegments.
- */
-
-/**
- * @typedef {Object} Options
- * @property {import("../events/condition.js").Condition} [condition] A function that
- * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
- * boolean to indicate whether that event will be considered to add or move a
- * vertex to the sketch. Default is
- * {@link module:ol/events/condition.primaryAction}.
- * @property {import("../events/condition.js").Condition} [deleteCondition] A function
- * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
- * boolean to indicate whether that event should be handled. By default,
- * {@link module:ol/events/condition.singleClick} with
- * {@link module:ol/events/condition.altKeyOnly} results in a vertex deletion.
- * @property {import("../events/condition.js").Condition} [insertVertexCondition] A
- * function that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and
- * returns a boolean to indicate whether a new vertex should be added to the sketch
- * features. Default is {@link module:ol/events/condition.always}.
- * @property {number} [pixelTolerance=10] Pixel tolerance for considering the
- * pointer close enough to a segment or vertex for editing.
- * @property {import("../style/Style.js").StyleLike|import("../style/flat.js").FlatStyleLike} [style]
- * Style used for the modification point or vertex. For linestrings and polygons, this will
- * be the affected vertex, for circles a point along the circle, and for points the actual
- * point. If not configured, the default edit style is used (see {@link module:ol/style/Style~Style}).
- * When using a style function, the point feature passed to the function will have a `features`
- * property - an array whose entries are the features that are being modified, and a `geometries`
- * property - an array whose entries are the geometries that are being modified. Both arrays are
- * in the same order. The `geometries` are only useful when modifying geometry collections, where
- * the geometry will be the particular geometry from the collection that is being modified.
- * @property {VectorSource} [source] The vector source with
- * features to modify.  If a vector source is not provided, a feature collection
- * must be provided with the `features` option.
- * @property {boolean|import("../layer/BaseVector").default} [hitDetection] When configured, point
- * features will be considered for modification based on their visual appearance, instead of being within
- * the `pixelTolerance` from the pointer location. When a {@link module:ol/layer/BaseVector~BaseVectorLayer} is
- * provided, only the rendered representation of the features on that layer will be considered.
- * @property {Collection<Feature>} [features]
- * The features the interaction works on.  If a feature collection is not
- * provided, a vector source must be provided with the `source` option.
- * @property {boolean} [wrapX=false] Wrap the world horizontally on the sketch
- * overlay.
- * @property {boolean} [snapToPointer=!hitDetection] The vertex, point or segment being modified snaps to the
- * pointer coordinate when clicked within the `pixelTolerance`.
- */
-
-/**
  * @classdesc
  * Events emitted by {@link module:ol/interaction/Modify~Modify} instances are
  * instances of this type.
@@ -163,15 +110,6 @@ export class ModifyEvent extends Event {
   }
 }
 
-/***
- * @template Return
- * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
- *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
- *     'change:active', import("../Object").ObjectEvent, Return> &
- *   import("../Observable").OnSignature<'modifyend'|'modifystart', ModifyEvent, Return> &
- *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
- *     'change:active'|'modifyend'|'modifystart', Return>} ModifyOnSignature
- */
 
 /**
  * @classdesc
@@ -201,21 +139,39 @@ class Modify extends PointerInteraction {
   constructor(options) {
     super(/** @type {import("./Pointer.js").Options} */ (options));
 
-    /***
-     * @type {ModifyOnSignature<import("../events").EventsKey>}
-     */
-    this.on;
+    this.$active = flyd.stream(true) // stream with initial value `true`
+    this.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
-    /***
-     * @type {ModifyOnSignature<import("../events").EventsKey>}
-     */
-    this.once;
+    this.$map = flyd.stream()
+    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
+    this.$isRendered = flyd.combine($map => $map().isRendered.bind($map()), [this.$map])
+    this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
+    this.$getCoordinateFromPixelInternal = flyd.combine($map => $map().getCoordinateFromPixelInternal.bind($map()), [this.$map])
+    this.$getPixelFromCoordinate = flyd.combine($map => $map().getPixelFromCoordinate.bind($map()), [this.$map])
+    this.$forEachFeatureAtPixel = flyd.combine($map => $map().forEachFeatureAtPixel.bind($map()), [this.$map])
+    this.$getInteracting = flyd.combine($view => $view().getInteracting.bind($view()), [this.$view])
+    this.$getResolution = flyd.combine($view => $view().getResolution.bind($view()), [this.$view])
 
-    /***
-     * @type {ModifyOnSignature<void>}
-     */
-    this.un;
+    // Note: Won't react to changed projection unless view is updated.
+    this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
 
+    // Optimization: Only update streams if values are (referentially) different:
+    this.$uniqMap = flyd.combine(lazy($map => $map()), [this.$map])
+    this.$uniqActive = flyd.combine(lazy($active => $active()), [this.$active])
+
+    // Side-effect:
+    flyd.combine($map => {
+      this.overlay_.setMap($map())
+    }, [this.$uniqMap, this.$uniqActive])
+
+    // Side-effect:
+    flyd.combine($active => {
+      if (this.vertexFeature_ && !$active()) {
+        this.overlay_.getSource().removeFeature(this.vertexFeature_)
+        this.vertexFeature_ = null
+      }
+    }, [this.$uniqActive])
+  
     /** @private */
     this.boundHandleFeatureChange_ = this.handleFeatureChange_.bind(this);
 
@@ -421,7 +377,10 @@ class Modify extends PointerInteraction {
       options.snapToPointer === undefined
         ? !this.hitDetection_
         : options.snapToPointer;
-  }
+
+
+
+  } // constructor
 
   /**
    * @param {Feature} feature Feature.
@@ -435,9 +394,9 @@ class Modify extends PointerInteraction {
         writer(feature, geometry);
       }
     }
-    const map = this.getMap();
-    if (map && map.isRendered() && this.getActive()) {
-      this.handlePointerAtPixel_(this.lastPixel_, map);
+
+    if (this.$isRendered() && this.$isRendered()() && this.getActive()) {
+      this.handlePointerAtPixel_(this.lastPixel_);
     }
     feature.addEventListener(EventType.CHANGE, this.boundHandleFeatureChange_);
   }
@@ -509,6 +468,7 @@ class Modify extends PointerInteraction {
         }
       }
     );
+
     for (let i = nodesToRemove.length - 1; i >= 0; --i) {
       const nodeToRemove = nodesToRemove[i];
       for (let j = this.dragSegments_.length - 1; j >= 0; --j) {
@@ -518,25 +478,6 @@ class Modify extends PointerInteraction {
       }
       rBush.remove(nodeToRemove);
     }
-  }
-
-  /**
-   * Activate or deactivate the interaction.
-   * @param {boolean} active Active.
-   * @observable
-   * @api
-   */
-  setActive(active) {
-    if (this.vertexFeature_ && !active) {
-      this.overlay_.getSource().removeFeature(this.vertexFeature_);
-      this.vertexFeature_ = null;
-    }
-    super.setActive(active);
-  }
-
-  setMap(map) {
-    this.overlay_.setMap(map);
-    super.setMap(map);
   }
 
   /**
@@ -778,8 +719,8 @@ class Modify extends PointerInteraction {
       geometry
     );
     const userProjection = getUserProjection();
-    if (userProjection && this.getMap()) {
-      const projection = this.getMap().getView().getProjection();
+    if (userProjection && this.$map()()) {
+      const projection = this.$projection();
       circleGeometry = circleGeometry
         .clone()
         .transform(userProjection, projection);
@@ -832,6 +773,8 @@ class Modify extends PointerInteraction {
    * @return {boolean} `false` to stop event propagation.
    */
   handleEvent(mapBrowserEvent) {
+    this.$map(mapBrowserEvent.map)
+
     if (!mapBrowserEvent.originalEvent) {
       return true;
     }
@@ -839,7 +782,7 @@ class Modify extends PointerInteraction {
 
     let handled;
     if (
-      !mapBrowserEvent.map.getView().getInteracting() &&
+      !this.$getInteracting()() &&
       mapBrowserEvent.type == MapBrowserEventType.POINTERMOVE &&
       !this.handlingDownUpSequence
     ) {
@@ -868,6 +811,8 @@ class Modify extends PointerInteraction {
    * @param {import("../MapBrowserEvent.js").default} evt Event.
    */
   handleDragEvent(evt) {
+    this.$map(evt.map)
+
     this.ignoreNextSingleClick_ = false;
     this.willModifyFeatures_(evt, this.dragSegments_);
 
@@ -939,7 +884,7 @@ class Modify extends PointerInteraction {
           } else {
             // We're dragging the circle's circumference:
             this.changingFeature_ = true;
-            const projection = evt.map.getView().getProjection();
+            const projection = this.$projection();
             let radius = coordinateDistance(
               fromUserCoordinate(geometry.getCenter(), projection),
               fromUserCoordinate(vertex, projection)
@@ -975,11 +920,14 @@ class Modify extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleDownEvent(evt) {
+    this.$map(evt.map)
+
     if (!this.condition_(evt)) {
       return false;
     }
+
     const pixelCoordinate = evt.coordinate;
-    this.handlePointerAtPixel_(evt.pixel, evt.map, pixelCoordinate);
+    this.handlePointerAtPixel_(evt.pixel, pixelCoordinate);
     this.dragSegments_.length = 0;
     this.featuresBeingModified_ = null;
     const vertexFeature = this.vertexFeature_;
@@ -1095,6 +1043,8 @@ class Modify extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleUpEvent(evt) {
+    this.$map(evt.map)
+
     for (let i = this.dragSegments_.length - 1; i >= 0; --i) {
       const segmentData = this.dragSegments_[i][0];
       const geometry = segmentData.geometry;
@@ -1147,7 +1097,7 @@ class Modify extends PointerInteraction {
    */
   handlePointerMove_(evt) {
     this.lastPixel_ = evt.pixel;
-    this.handlePointerAtPixel_(evt.pixel, evt.map, evt.coordinate);
+    this.handlePointerAtPixel_(evt.pixel, evt.coordinate);
   }
 
   /**
@@ -1156,9 +1106,9 @@ class Modify extends PointerInteraction {
    * @param {import("../coordinate.js").Coordinate} [coordinate] The pixel Coordinate.
    * @private
    */
-  handlePointerAtPixel_(pixel, map, coordinate) {
-    const pixelCoordinate = coordinate || map.getCoordinateFromPixel(pixel);
-    const projection = map.getView().getProjection();
+  handlePointerAtPixel_(pixel, coordinate) {
+    const pixelCoordinate = coordinate || this.$getCoordinateFromPixel()(pixel);
+    const projection = this.$projection();
     const sortByDistance = function (a, b) {
       return (
         projectedDistanceToSegmentDataSquared(pixelCoordinate, a, projection) -
@@ -1175,7 +1125,7 @@ class Modify extends PointerInteraction {
         typeof this.hitDetection_ === 'object'
           ? (layer) => layer === this.hitDetection_
           : undefined;
-      map.forEachFeatureAtPixel(
+      this.$forEachFeatureAtPixel()(
         pixel,
         (feature, layer, geometry) => {
           const geom = geometry || feature.getGeometry();
@@ -1206,7 +1156,7 @@ class Modify extends PointerInteraction {
         createExtent(pixelCoordinate, tempExtent),
         projection
       );
-      const buffer = map.getView().getResolution() * this.pixelTolerance_;
+      const buffer = this.$getResolution()() * this.pixelTolerance_;
       const box = toUserExtent(
         bufferExtent(viewExtent, buffer, tempExtent),
         projection
@@ -1218,7 +1168,7 @@ class Modify extends PointerInteraction {
       const node = nodes.sort(sortByDistance)[0];
       const closestSegment = node.segment;
       let vertex = closestOnSegmentData(pixelCoordinate, node, projection);
-      const vertexPixel = map.getPixelFromCoordinate(vertex);
+      const vertexPixel = this.$getPixelFromCoordinate()(vertex);
       let dist = coordinateDistance(pixel, vertexPixel);
       if (hitPointGeometry || dist <= this.pixelTolerance_) {
         /** @type {Object<string, boolean>} */
@@ -1240,8 +1190,8 @@ class Modify extends PointerInteraction {
             [node.geometry]
           );
         } else {
-          const pixel1 = map.getPixelFromCoordinate(closestSegment[0]);
-          const pixel2 = map.getPixelFromCoordinate(closestSegment[1]);
+          const pixel1 = this.$getPixelFromCoordinate()(closestSegment[0]);
+          const pixel2 = this.$getPixelFromCoordinate()(closestSegment[1]);
           const squaredDist1 = squaredCoordinateDistance(vertexPixel, pixel1);
           const squaredDist2 = squaredCoordinateDistance(vertexPixel, pixel2);
           dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
