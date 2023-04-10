@@ -474,13 +474,15 @@ class Map extends BaseObject {
     // FIXME: 0b1d83a4 - Map supplied implicitly for most interations.
     this.interactions.addEventListener(
       CollectionEventType.ADD,
-      event => event.element.setMap(this)
+      // TODO: innteraction should already be associated with map
+      event => event.element.setMap && event.element.setMap(this)
     );
 
-    // FIXME: 88ee472a - Detach interaction from map? If so how?
+    // FIXME: 88ee472a - Interactions needs means to dispose (detach from map).
     this.interactions.addEventListener(
       CollectionEventType.REMOVE,
-      event => event.element.setMap(null)
+      // TODO: innteraction should already be associated with map
+      event => event.element.setMap && event.element.setMap(null)
     );
 
     this.overlays_.addEventListener(
@@ -500,7 +502,12 @@ class Map extends BaseObject {
     );
 
     this.controls.forEach(control => control.setMap(this));
-    this.interactions.forEach(interaction => interaction.setMap(this))
+    this.interactions
+      .forEach(interaction => {
+        // TODO: propagating map this late should no longer necessary
+        if (!interaction.setMap) return 
+        interaction.setMap(this)
+      })
     this.overlays_.forEach(this.addOverlayInternal_.bind(this));
   }
 
@@ -1052,7 +1059,8 @@ class Map extends BaseObject {
       for (let i = interactionsArray.length - 1; i >= 0; i--) {
         const interaction = interactionsArray[i];
         if (
-          interaction.getMap() !== this ||
+          // FIXME: Why the fuck should map hold an interaction for another/no map?
+          // interaction.getMap() !== this ||
           !interaction.getActive() ||
           !this.getTargetElement()
         ) {

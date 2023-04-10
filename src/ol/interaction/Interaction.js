@@ -67,21 +67,6 @@ class Interaction extends BaseObject {
   constructor(options) {
     super();
 
-    /***
-     * @type {InteractionOnSignature<import("../events").EventsKey>}
-     */
-    this.on;
-
-    /***
-     * @type {InteractionOnSignature<import("../events").EventsKey>}
-     */
-    this.once;
-
-    /***
-     * @type {InteractionOnSignature<void>}
-     */
-    this.un;
-
     if (options && options.handleEvent) {
       this.handleEvent = options.handleEvent;
     }
