@@ -2,7 +2,6 @@ import flyd from 'flyd'
 import { lazy } from './flyd'
 import Collection from '../Collection.js';
 import CollectionEventType from '../CollectionEventType.js';
-import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
 import Feature from '../Feature.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
@@ -42,6 +41,7 @@ import {
   toUserExtent,
 } from '../proj.js';
 import {getUid} from '../util.js';
+import { Active } from './Active'
 
 /**
  * The segment index assigned to a circle's center when
@@ -59,56 +59,6 @@ const CIRCLE_CIRCUMFERENCE_INDEX = 1;
 
 const tempExtent = [0, 0, 0, 0];
 const tempSegment = [];
-
-/**
- * @enum {string}
- */
-export const ModifyEventType = {
-  /**
-   * Triggered upon feature modification start
-   * @event ModifyEvent#modifystart
-   * @api
-   */
-  MODIFYSTART: 'modifystart',
-  /**
-   * Triggered upon feature modification end
-   * @event ModifyEvent#modifyend
-   * @api
-   */
-  MODIFYEND: 'modifyend',
-};
-
-/**
- * @classdesc
- * Events emitted by {@link module:ol/interaction/Modify~Modify} instances are
- * instances of this type.
- */
-export class ModifyEvent extends Event {
-  /**
-   * @param {ModifyEventType} type Type.
-   * @param {Collection<Feature>} features
-   * The features modified.
-   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent
-   * Associated {@link module:ol/MapBrowserEvent~MapBrowserEvent}.
-   */
-  constructor(type, features, mapBrowserEvent) {
-    super(type);
-
-    /**
-     * The features being modified.
-     * @type {Collection<Feature>}
-     * @api
-     */
-    this.features = features;
-
-    /**
-     * Associated {@link module:ol/MapBrowserEvent~MapBrowserEvent}.
-     * @type {import("../MapBrowserEvent.js").default}
-     * @api
-     */
-    this.mapBrowserEvent = mapBrowserEvent;
-  }
-}
 
 
 /**
@@ -132,15 +82,30 @@ export class ModifyEvent extends Event {
  * @fires ModifyEvent
  * @api
  */
-class Modify extends PointerInteraction {
+export class Modify {
   /**
    * @param {Options} options Options.
    */
   constructor(options) {
-    super(/** @type {import("./Pointer.js").Options} */ (options));
+
+    // Callbacks instead of events:
+    const noop = () => {}
+    this.modifystart_ = options.modifystart || noop
+    this.modifyend_ = options.modifyend || noop
+
+    // Composition over inheritance:
+    this.pointer_ = new PointerInteraction({
+      handleDownEvent: this.handleDownEvent.bind(this),
+      handleDragEvent: this.handleDragEvent.bind(this),
+      handleUpEvent: this.handleUpEvent.bind(this)
+    })
+
+    // FIXME: ba548d93 - Remove interaction from map to deactive.
+    // Get rid of Interactiob/BaseObject inheritance:
+    this.active_ = new Active(true)
 
     this.$active = flyd.stream(true) // stream with initial value `true`
-    this.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
+    this.active_.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
     this.$map = flyd.stream()
     this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
@@ -377,11 +342,16 @@ class Modify extends PointerInteraction {
       options.snapToPointer === undefined
         ? !this.hitDetection_
         : options.snapToPointer;
-
-
-
   } // constructor
 
+  getActive() {
+    return this.active_.getActive()
+  }
+
+  setActive(value) {
+    this.active_.setActive(value)
+  }
+ 
   /**
    * @param {Feature} feature Feature.
    * @private
@@ -422,13 +392,7 @@ class Modify extends PointerInteraction {
       if (this.featuresBeingModified_.getLength() === 0) {
         this.featuresBeingModified_ = null;
       } else {
-        this.dispatchEvent(
-          new ModifyEvent(
-            ModifyEventType.MODIFYSTART,
-            this.featuresBeingModified_,
-            evt
-          )
-        );
+        this.modifystart_(this.featuresBeingModified_)
       }
     }
   }
@@ -803,7 +767,7 @@ class Modify extends PointerInteraction {
       this.ignoreNextSingleClick_ = false;
     }
 
-    return super.handleEvent(mapBrowserEvent) && !handled;
+    return this.pointer_.handleEvent(mapBrowserEvent) && !handled;
   }
 
   /**
@@ -1079,13 +1043,7 @@ class Modify extends PointerInteraction {
       }
     }
     if (this.featuresBeingModified_) {
-      this.dispatchEvent(
-        new ModifyEvent(
-          ModifyEventType.MODIFYEND,
-          this.featuresBeingModified_,
-          evt
-        )
-      );
+      this.modifyend_(this.featuresBeingModified_)
       this.featuresBeingModified_ = null;
     }
     return false;
@@ -1321,13 +1279,7 @@ class Modify extends PointerInteraction {
       this.willModifyFeatures_(evt, this.dragSegments_);
       const removed = this.removeVertex_();
       if (this.featuresBeingModified_) {
-        this.dispatchEvent(
-          new ModifyEvent(
-            ModifyEventType.MODIFYEND,
-            this.featuresBeingModified_,
-            evt
-          )
-        );
+        this.modifyend_(this.featuresBeingModified_)
       }
 
       this.featuresBeingModified_ = null;
@@ -1597,5 +1549,3 @@ function getDefaultStyleFunction() {
     return style['Point'];
   };
 }
-
-export default Modify;

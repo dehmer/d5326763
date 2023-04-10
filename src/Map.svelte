@@ -3,7 +3,7 @@
   import * as ol from './ol'
   import { OSM, Vector as VectorSource } from './ol/source'
   import { Tile as TileLayer, Vector as VectorLayer } from './ol/layer'
-  import { Modify } from './ol/interaction'
+  import { Modify } from './ol/interaction/X-Modify'
   import { Draw } from './ol/interaction/X-Draw'
   import GeoJSON from './ol/format/GeoJSON'
 
@@ -36,23 +36,27 @@
     })
 
     // draw interaction.
-    ;(() => {
-      const interaction = new Draw({ 
-        source: vectorSource, 
-        type: 'Polygon',
-        drawstart: feature => console.log('[drawstart]', feature),
-        drawend: feature => console.log('[drawend]', geoJSON.writeFeature(feature)),
-        drawabort: feature => console.log('[drawabort]', feature)
-      })
-
-      map.addInteraction(interaction)
-    })()
-
-    // // modify interaction.
     // ;(() => {
-    //   const interaction = new Modify({ source: vectorSource })
+    //   const interaction = new Draw({ 
+    //     source: vectorSource, 
+    //     type: 'Polygon',
+    //     drawstart: feature => console.log('[drawstart]', feature),
+    //     drawend: feature => console.log('[drawend]', geoJSON.writeFeature(feature)),
+    //     drawabort: feature => console.log('[drawabort]', feature)
+    //   })
+
     //   map.addInteraction(interaction)
     // })()
+
+    // modify interaction.
+    ;(() => {
+      const interaction = new Modify({ 
+        source: vectorSource,
+        modifystart: features => console.log('[modifystart]', features),
+        modifyend: features => console.log('[modifyend]', features)
+      })
+      map.addInteraction(interaction)
+    })()
 
 
     const destroy = () => {
