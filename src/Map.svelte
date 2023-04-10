@@ -17,6 +17,8 @@
   ]
 
   const setup = target => {
+    target.focus()
+
     const zoom = 14
     const center = [1737884.370211603, 6146136.723228034]
     const defaultViewport = { zoom, center }
@@ -57,7 +59,8 @@
   }
 </script>
 
-<div class='map' use:setup/>
+<!-- tabIndex required for map target to accept focus and keyboard events. -->
+<div class='map' tabIndex='0' use:setup/>
 
 <style>
   .map {
