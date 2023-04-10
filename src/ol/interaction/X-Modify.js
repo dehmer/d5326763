@@ -105,6 +105,8 @@ export class Modify {
     this.active_ = new Active(true)
 
     this.$active = flyd.stream(true) // stream with initial value `true`
+
+    // FIXME: 2100f0cc - Listener leak: clean-up on dispose (or similar); see also ba548d93
     this.active_.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
     this.$map = flyd.stream()

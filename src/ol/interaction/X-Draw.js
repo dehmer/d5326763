@@ -390,7 +390,8 @@ export class Draw {
     this.traceSource_ = options.traceSource || options.source || null;
 
     this.$active = flyd.stream(true) // stream with initial value `true`
-    // TODO: do without BaseObject/Interaction, at least without inheritance
+
+    // FIXME: 2100f0cc - Listener leak: clean-up on dispose (or similar); see also ba548d93
     this.active_.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
     this.$map = flyd.stream()

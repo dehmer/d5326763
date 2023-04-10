@@ -8,3 +8,4 @@ a3d11fcc - Redundancy: Return value vs. modified actual parameter.
 1c15ff01 - Move to more narrow scope (draw/shared updated info).
 6bb2d2c0 - Move to more narrow scope (draw/shared point relation).
 ba548d93 - Remove interaction from map to deactive.
+2100f0cc - Listener leak: clean-up on dispose (or similar); see also ba548d93
