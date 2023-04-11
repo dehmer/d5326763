@@ -1,5 +1,5 @@
 import flyd from 'flyd'
-import { lazy } from './flyd'
+import { skipRepeats, nullable } from './flyd'
 import Circle from '../geom/Circle.js';
 import EventType from '../events/EventType.js';
 import Feature from '../Feature.js';
@@ -390,25 +390,20 @@ export class Draw {
     this.traceSource_ = options.traceSource || options.source || null;
 
     this.$active = flyd.stream(true) // stream with initial value `true`
+    this.$activeNoRepeats = flyd.combine(skipRepeats(), [this.$active])
 
     // FIXME: 2100f0cc - Listener leak: clean-up on dispose (or similar); see also ba548d93
     this.active_.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
     this.$map = flyd.stream()
-    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
-    this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
-    this.$getPixelFromCoordinate = flyd.combine($map => $map().getPixelFromCoordinate.bind($map()), [this.$map])
-    this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
-
-    // Optimization: Only update streams if values are (referentially) different:
-    this.$uniqMap = flyd.combine(lazy($map => $map()), [this.$map])
-    this.$uniqActive = flyd.combine(lazy($active => $active()), [this.$active])
+    this.$mapNoRepeats = flyd.combine(skipRepeats(), [this.$map])
+    this.$view = flyd.combine(nullable($map => $map().getView()), [this.$mapNoRepeats])
 
     // Side-effect:
     flyd.combine(($map, $active) => {
       if (!$map() || !$active()) this.abortDrawing()      
       this.overlay_.setMap($active() ? $map() : null)
-    }, [this.$uniqMap, this.$uniqActive])
+    }, [this.$mapNoRepeats, this.$activeNoRepeats])
   } // constructor
 
   getActive() {
@@ -446,24 +441,27 @@ export class Draw {
     return this.overlay_;
   }
 
-  handleEvent(event) {
-    this.$map(event.map)
+  handleEvent(mapBrowserEvent) {
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.$map(map)
+    if (!this.$map()) return mapBrowserEvent
 
-    if (event.originalEvent.type === EventType.CONTEXTMENU) {
+    if (mapBrowserEvent.originalEvent.type === EventType.CONTEXTMENU) {
       // Avoid context menu for long taps when drawing on mobile
-      event.originalEvent.preventDefault();
+      mapBrowserEvent.originalEvent.preventDefault();
     }
-    this.freehand_ = this.mode_ !== 'Point' && this.freehandCondition_(event);
-    let move = event.type === MapBrowserEventType.POINTERMOVE;
+    
+    this.freehand_ = this.mode_ !== 'Point' && this.freehandCondition_(mapBrowserEvent);
+    let move = mapBrowserEvent.type === MapBrowserEventType.POINTERMOVE;
     let pass = true;
     if (
       !this.freehand_ &&
       this.lastDragTime_ &&
-      event.type === MapBrowserEventType.POINTERDRAG
+      mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG
     ) {
       const now = Date.now();
       if (now - this.lastDragTime_ >= this.dragVertexDelay_) {
-        this.downPx_ = event.pixel;
+        this.downPx_ = mapBrowserEvent.pixel;
         this.shouldHandle_ = !this.freehand_;
         move = true;
       } else {
@@ -476,36 +474,36 @@ export class Draw {
     }
     if (
       this.freehand_ &&
-      event.type === MapBrowserEventType.POINTERDRAG &&
+      mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG &&
       this.sketchFeature_ !== null
     ) {
-      this.addToDrawing_(event.coordinate);
+      this.addToDrawing_(mapBrowserEvent.coordinate);
       pass = false;
     } else if (
       this.freehand_ &&
-      event.type === MapBrowserEventType.POINTERDOWN
+      mapBrowserEvent.type === MapBrowserEventType.POINTERDOWN
     ) {
       pass = false;
     } else if (move && this.pointer_.getPointerCount() < 2) {
-      pass = event.type === MapBrowserEventType.POINTERMOVE;
+      pass = mapBrowserEvent.type === MapBrowserEventType.POINTERMOVE;
       if (pass && this.freehand_) {
-        this.handlePointerMove_(event);
+        this.handlePointerMove_(mapBrowserEvent);
         if (this.shouldHandle_) {
           // Avoid page scrolling when freehand drawing on mobile
-          event.originalEvent.preventDefault();
+          mapBrowserEvent.originalEvent.preventDefault();
         }
       } else if (
-        event.originalEvent.pointerType === 'mouse' ||
-        (event.type === MapBrowserEventType.POINTERDRAG &&
+        mapBrowserEvent.originalEvent.pointerType === 'mouse' ||
+        (mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG &&
           this.downTimeout_ === undefined)
       ) {
-        this.handlePointerMove_(event);
+        this.handlePointerMove_(mapBrowserEvent);
       }
-    } else if (event.type === MapBrowserEventType.DBLCLICK) {
+    } else if (mapBrowserEvent.type === MapBrowserEventType.DBLCLICK) {
       pass = false;
     }
 
-    return this.pointer_.handleEvent(event) && pass;
+    return this.pointer_.handleEvent(mapBrowserEvent) && pass;
   }
 
   /**
@@ -568,14 +566,16 @@ export class Draw {
       return;
     }
 
-    const lowerLeft = this.$getCoordinateFromPixel()([
+    const lowerLeft = this.$map().getCoordinateFromPixel([
       event.pixel[0] - this.snapTolerance_,
       event.pixel[1] + this.snapTolerance_,
     ]);
-    const upperRight = this.$getCoordinateFromPixel()([
+
+    const upperRight = this.$map().getCoordinateFromPixel([
       event.pixel[0] + this.snapTolerance_,
       event.pixel[1] - this.snapTolerance_,
     ]);
+
     const extent = boundingExtent([lowerLeft, upperRight]);
     const features = this.traceSource_.getFeaturesInExtent(extent);
     if (features.length === 0) {
@@ -754,7 +754,7 @@ export class Draw {
       target.endIndex
     );
 
-    const pixel = this.$getPixelFromCoordinate()(coordinate);
+    const pixel = this.$map().getPixelFromCoordinate(coordinate);
     event.coordinate = coordinate;
     event.pixel = [Math.round(pixel[0]), Math.round(pixel[1])];
   }
@@ -877,7 +877,7 @@ export class Draw {
       if (potentiallyDone) {
         for (let i = 0, ii = potentiallyFinishCoordinates.length; i < ii; i++) {
           const finishCoordinate = potentiallyFinishCoordinates[i];
-          const finishPixel = this.$getPixelFromCoordinate()(finishCoordinate);
+          const finishPixel = this.$map().getPixelFromCoordinate(finishCoordinate);
           const dx = pixel[0] - finishPixel[0];
           const dy = pixel[1] - finishPixel[1];
           const snapTolerance = this.freehand_ ? 1 : this.snapTolerance_;
@@ -956,7 +956,7 @@ export class Draw {
     const geometry = this.geometryFunction_(
       this.sketchCoords_,
       undefined,
-      this.$projection()
+      this.$view().getProjection()
     );
     this.sketchFeature_ = new Feature();
     if (this.geometryName_) {
@@ -984,7 +984,7 @@ export class Draw {
     } else if (this.mode_ === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       last = coordinates[coordinates.length - 1];
-      if (this.atFinish_(this.$getPixelFromCoordinate()(coordinate))) {
+      if (this.atFinish_(this.$map().getPixelFromCoordinate(coordinate))) {
         // snap to finish
         coordinate = this.finishCoordinate_.slice();
       }
@@ -997,7 +997,7 @@ export class Draw {
     this.geometryFunction_(
       /** @type {!LineCoordType} */ (this.sketchCoords_),
       geometry,
-      this.$projection()
+      this.$view().getProjection()
     );
     if (this.sketchPoint_) {
       const sketchPointGeom = this.sketchPoint_.getGeometry();
@@ -1033,7 +1033,7 @@ export class Draw {
         }
       }
       coordinates.push(coordinate.slice());
-      this.geometryFunction_(coordinates, geometry, this.$projection());
+      this.geometryFunction_(coordinates, geometry, this.$view().getProjection());
     } else if (mode === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       if (coordinates.length >= this.maxPoints_) {
@@ -1047,7 +1047,7 @@ export class Draw {
       if (done) {
         this.finishCoordinate_ = coordinates[0];
       }
-      this.geometryFunction_(this.sketchCoords_, geometry, this.$projection());
+      this.geometryFunction_(this.sketchCoords_, geometry, this.$view().getProjection());
     }
     this.createOrUpdateSketchPoint_(coordinate.slice());
     this.updateSketchFeatures_();
@@ -1076,7 +1076,7 @@ export class Draw {
           coordinates[coordinates.length - 1] = finishCoordinate;
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
-        this.geometryFunction_(coordinates, geometry, this.$projection());
+        this.geometryFunction_(coordinates, geometry, this.$view().getProjection());
         if (geometry.getType() === 'Polygon' && this.sketchLine_) {
           this.createOrUpdateCustomSketchLine_(
             /** @type {Polygon} */ (geometry)
@@ -1092,7 +1092,7 @@ export class Draw {
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
         sketchLineGeom.setCoordinates(coordinates);
-        this.geometryFunction_(this.sketchCoords_, geometry, this.$projection());
+        this.geometryFunction_(this.sketchCoords_, geometry, this.$view().getProjection());
       }
 
       if (coordinates.length === 1) {
@@ -1129,11 +1129,11 @@ export class Draw {
     if (this.mode_ === 'LineString') {
       // remove the redundant last point
       coordinates.pop();
-      this.geometryFunction_(coordinates, geometry, this.$projection());
+      this.geometryFunction_(coordinates, geometry, this.$view().getProjection());
     } else if (this.mode_ === 'Polygon') {
       // remove the redundant last point in ring
       /** @type {PolyCoordType} */ (coordinates)[0].pop();
-      this.geometryFunction_(coordinates, geometry, this.$projection());
+      this.geometryFunction_(coordinates, geometry, this.$view().getProjection());
       coordinates = geometry.getCoordinates();
     }
 

@@ -93,20 +93,7 @@
       controls: []
     })
 
-    // setTimeout(() => map.removeXInteraction(xinteractions[4]), 5000)
-
-    // draw interaction.
-    // ;(() => {
-    //   const interaction = draw()
-    //   map.addInteraction(interaction)
-    // })()
-
-    // modify interaction.
-    // ;(() => {
-    //   const interaction = modify()
-    //   map.addInteraction(interaction)
-    // })()
-
+    // setTimeout(() => map.removeXInteraction(xinteractions[3]), 5000)
 
     const destroy = () => {
       if (map) {

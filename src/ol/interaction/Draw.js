@@ -1,5 +1,5 @@
 import flyd from 'flyd'
-import { lazy } from './flyd'
+import { skipRepeats } from './flyd'
 import Circle from '../geom/Circle.js';
 import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
@@ -863,14 +863,14 @@ export class Draw extends PointerInteraction {
     this.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
     this.$map = flyd.stream()
-    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
+    this.$view = flyd.combine(skipRepeats($map => $map().getView()), [this.$map])
     this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
     this.$getPixelFromCoordinate = flyd.combine($map => $map().getPixelFromCoordinate.bind($map()), [this.$map])
     this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
 
     // Optimization: Only update streams if values are (referentially) different:
-    this.$uniqMap = flyd.combine(lazy($map => $map()), [this.$map])
-    this.$uniqActive = flyd.combine(lazy($active => $active()), [this.$active])
+    this.$uniqMap = flyd.combine(skipRepeats($map => $map()), [this.$map])
+    this.$uniqActive = flyd.combine(skipRepeats($active => $active()), [this.$active])
 
     // Side-effect:
     flyd.combine(($map, $active) => {

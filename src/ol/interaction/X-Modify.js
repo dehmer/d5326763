@@ -1,5 +1,5 @@
 import flyd from 'flyd'
-import { lazy } from './flyd'
+import { skipRepeats, nullable } from './flyd'
 import Collection from '../Collection.js';
 import CollectionEventType from '../CollectionEventType.js';
 import EventType from '../events/EventType.js';
@@ -105,39 +105,27 @@ export class Modify {
     this.active_ = new Active(true)
 
     this.$active = flyd.stream(true) // stream with initial value `true`
+    this.$activeNoRepeats = flyd.combine(skipRepeats(), [this.$active])
 
     // FIXME: 2100f0cc - Listener leak: clean-up on dispose (or similar); see also ba548d93
     this.active_.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
     this.$map = flyd.stream()
-    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
-    this.$isRendered = flyd.combine($map => $map().isRendered.bind($map()), [this.$map])
-    this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
-    this.$getCoordinateFromPixelInternal = flyd.combine($map => $map().getCoordinateFromPixelInternal.bind($map()), [this.$map])
-    this.$getPixelFromCoordinate = flyd.combine($map => $map().getPixelFromCoordinate.bind($map()), [this.$map])
-    this.$forEachFeatureAtPixel = flyd.combine($map => $map().forEachFeatureAtPixel.bind($map()), [this.$map])
-    this.$getInteracting = flyd.combine($view => $view().getInteracting.bind($view()), [this.$view])
-    this.$getResolution = flyd.combine($view => $view().getResolution.bind($view()), [this.$view])
+    this.$mapNoRepeats = flyd.combine(skipRepeats(), [this.$map])
+    this.$view = flyd.combine(nullable($map => $map().getView()), [this.$mapNoRepeats])
 
-    // Note: Won't react to changed projection unless view is updated.
-    this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
-
-    // Optimization: Only update streams if values are (referentially) different:
-    this.$uniqMap = flyd.combine(lazy($map => $map()), [this.$map])
-    this.$uniqActive = flyd.combine(lazy($active => $active()), [this.$active])
-
-    // Side-effect:
+    // Side-effect: Forward map to overlay.
     flyd.combine($map => {
       this.overlay_.setMap($map())
-    }, [this.$uniqMap, this.$uniqActive])
+    }, [this.$mapNoRepeats, this.$activeNoRepeats])
 
-    // Side-effect:
+    // Side-effect: Remove vertex feature from overlay.
     flyd.combine($active => {
       if (this.vertexFeature_ && !$active()) {
         this.overlay_.getSource().removeFeature(this.vertexFeature_)
         this.vertexFeature_ = null
       }
-    }, [this.$uniqActive])
+    }, [this.$activeNoRepeats])
   
     /** @private */
     this.boundHandleFeatureChange_ = this.handleFeatureChange_.bind(this);
@@ -367,9 +355,10 @@ export class Modify {
       }
     }
 
-    if (this.$isRendered() && this.$isRendered()() && this.getActive()) {
+    if (this.$view() && this.$view().isRendered && this.$active()) {
       this.handlePointerAtPixel_(this.lastPixel_);
     }
+
     feature.addEventListener(EventType.CHANGE, this.boundHandleFeatureChange_);
   }
 
@@ -685,8 +674,8 @@ export class Modify {
       geometry
     );
     const userProjection = getUserProjection();
-    if (userProjection && this.$map()()) {
-      const projection = this.$projection();
+    if (userProjection && this.$map()) {
+      const projection = this.$view().getProjection();
       circleGeometry = circleGeometry
         .clone()
         .transform(userProjection, projection);
@@ -739,7 +728,9 @@ export class Modify {
    * @return {boolean} `false` to stop event propagation.
    */
   handleEvent(mapBrowserEvent) {
-    this.$map(mapBrowserEvent.map)
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.$map(map)
+    if (!this.$map()) return mapBrowserEvent
 
     if (!mapBrowserEvent.originalEvent) {
       return true;
@@ -748,7 +739,7 @@ export class Modify {
 
     let handled;
     if (
-      !this.$getInteracting()() &&
+      !this.$view().getInteracting() &&
       mapBrowserEvent.type == MapBrowserEventType.POINTERMOVE &&
       !this.handlingDownUpSequence
     ) {
@@ -850,7 +841,7 @@ export class Modify {
           } else {
             // We're dragging the circle's circumference:
             this.changingFeature_ = true;
-            const projection = this.$projection();
+            const projection = this.$view().getProjection();
             let radius = coordinateDistance(
               fromUserCoordinate(geometry.getCenter(), projection),
               fromUserCoordinate(vertex, projection)
@@ -1067,8 +1058,8 @@ export class Modify {
    * @private
    */
   handlePointerAtPixel_(pixel, coordinate) {
-    const pixelCoordinate = coordinate || this.$getCoordinateFromPixel()(pixel);
-    const projection = this.$projection();
+    const pixelCoordinate = coordinate || this.$map().getCoordinateFromPixel(pixel);
+    const projection = this.$view().getProjection();
     const sortByDistance = function (a, b) {
       return (
         projectedDistanceToSegmentDataSquared(pixelCoordinate, a, projection) -
@@ -1085,7 +1076,7 @@ export class Modify {
         typeof this.hitDetection_ === 'object'
           ? (layer) => layer === this.hitDetection_
           : undefined;
-      this.$forEachFeatureAtPixel()(
+      this.$map().forEachFeatureAtPixel(
         pixel,
         (feature, layer, geometry) => {
           const geom = geometry || feature.getGeometry();
@@ -1116,7 +1107,7 @@ export class Modify {
         createExtent(pixelCoordinate, tempExtent),
         projection
       );
-      const buffer = this.$getResolution()() * this.pixelTolerance_;
+      const buffer = this.$view().getResolution() * this.pixelTolerance_;
       const box = toUserExtent(
         bufferExtent(viewExtent, buffer, tempExtent),
         projection
@@ -1128,7 +1119,7 @@ export class Modify {
       const node = nodes.sort(sortByDistance)[0];
       const closestSegment = node.segment;
       let vertex = closestOnSegmentData(pixelCoordinate, node, projection);
-      const vertexPixel = this.$getPixelFromCoordinate()(vertex);
+      const vertexPixel = this.$map().getPixelFromCoordinate(vertex);
       let dist = coordinateDistance(pixel, vertexPixel);
       if (hitPointGeometry || dist <= this.pixelTolerance_) {
         /** @type {Object<string, boolean>} */
@@ -1150,8 +1141,8 @@ export class Modify {
             [node.geometry]
           );
         } else {
-          const pixel1 = this.$getPixelFromCoordinate()(closestSegment[0]);
-          const pixel2 = this.$getPixelFromCoordinate()(closestSegment[1]);
+          const pixel1 = this.$map().getPixelFromCoordinate(closestSegment[0]);
+          const pixel2 = this.$map().getPixelFromCoordinate(closestSegment[1]);
           const squaredDist1 = squaredCoordinateDistance(vertexPixel, pixel1);
           const squaredDist2 = squaredCoordinateDistance(vertexPixel, pixel2);
           dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));

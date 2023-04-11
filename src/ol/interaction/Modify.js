@@ -1,5 +1,5 @@
 import flyd from 'flyd'
-import { lazy } from './flyd'
+import { skipRepeats } from './flyd'
 import Collection from '../Collection.js';
 import CollectionEventType from '../CollectionEventType.js';
 import Event from '../events/Event.js';
@@ -140,10 +140,12 @@ class Modify extends PointerInteraction {
     super(/** @type {import("./Pointer.js").Options} */ (options));
 
     this.$active = flyd.stream(true) // stream with initial value `true`
+    this.$activeNoRepeats = flyd.combine(skipRepeats(), [this.$active])
     this.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
 
     this.$map = flyd.stream()
-    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
+    this.$mapNoRepeats = flyd.combine(skipRepeats(), [this.$map])
+    this.$view = flyd.combine($map => $map().getView(), [this.$mapNoRepeats])
     this.$isRendered = flyd.combine($map => $map().isRendered.bind($map()), [this.$map])
     this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
     this.$getCoordinateFromPixelInternal = flyd.combine($map => $map().getCoordinateFromPixelInternal.bind($map()), [this.$map])
@@ -155,14 +157,10 @@ class Modify extends PointerInteraction {
     // Note: Won't react to changed projection unless view is updated.
     this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
 
-    // Optimization: Only update streams if values are (referentially) different:
-    this.$uniqMap = flyd.combine(lazy($map => $map()), [this.$map])
-    this.$uniqActive = flyd.combine(lazy($active => $active()), [this.$active])
-
     // Side-effect:
     flyd.combine($map => {
       this.overlay_.setMap($map())
-    }, [this.$uniqMap, this.$uniqActive])
+    }, [this.$mapNoRepeats, this.$activeNoRepeats])
 
     // Side-effect:
     flyd.combine($active => {
@@ -170,7 +168,7 @@ class Modify extends PointerInteraction {
         this.overlay_.getSource().removeFeature(this.vertexFeature_)
         this.vertexFeature_ = null
       }
-    }, [this.$uniqActive])
+    }, [this.$activeNoRepeats])
   
     /** @private */
     this.boundHandleFeatureChange_ = this.handleFeatureChange_.bind(this);

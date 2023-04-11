@@ -1,5 +1,5 @@
 import flyd from 'flyd'
-import { lazy } from './flyd'
+import { skipRepeats } from './flyd'
 import DragBox from './DragBox.js';
 import {easeOut} from '../easing.js';
 import {shiftKeyOnly} from '../events/condition.js';
@@ -56,7 +56,8 @@ class DragZoom extends DragBox {
     this.out_ = options.out !== undefined ? options.out : false;
 
     this.$map = flyd.stream()
-    this.$view = flyd.combine(lazy($map => $map().getView()), [this.$map])
+    this.$mapNoRepeats = flyd.combine(skipRepeats(), [this.$map])
+    this.$view = flyd.combine($map => $map().getView(), [this.$mapNoRepeats])
     this.$rotatedExtentForGeometry = flyd.combine($view => $view().rotatedExtentForGeometry.bind($view()), [this.$view])
     this.$getResolutionForExtentInternal = flyd.combine($view => $view().getResolutionForExtentInternal.bind($view()), [this.$view])
     this.$getResolution = flyd.combine($view => $view().getResolution.bind($view()), [this.$view])
