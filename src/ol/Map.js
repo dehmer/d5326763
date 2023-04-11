@@ -1,6 +1,4 @@
-/**
- * @module ol/Map
- */
+import * as R from 'ramda'
 import BaseObject from './Object.js';
 import Collection from './Collection.js';
 import CollectionEventType from './CollectionEventType.js';
@@ -86,32 +84,6 @@ import {warn} from './console.js';
  * @property {boolean} [checkWrapped=true] Check-Wrapped Will check for wrapped geometries inside the range of
  *   +/- 1 world width. Works only if a projection is used that can be wrapped.
  */
-
-/**
- * @typedef {Object} MapOptionsInternal
- * @property {Collection<import("./control/Control.js").default>} [controls] Controls.
- * @property {Collection<import("./interaction/Interaction.js").default>} [interactions] Interactions.
- * @property {HTMLElement|Document} keyboardEventTarget KeyboardEventTarget.
- * @property {Collection<import("./Overlay.js").default>} overlays Overlays.
- * @property {Object<string, *>} values Values.
- */
-
-/**
- * @typedef {import("./ObjectEventType").Types|'change:layergroup'|'change:size'|'change:target'|'change:view'} MapObjectEventTypes
- */
-
-/***
- * @template Return
- * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
- *    import("./Observable").OnSignature<MapObjectEventTypes, import("./Object").ObjectEvent, Return> &
- *    import("./Observable").OnSignature<import("./MapBrowserEventType").Types, import("./MapBrowserEvent").default, Return> &
- *    import("./Observable").OnSignature<import("./MapEventType").Types, import("./MapEvent").default, Return> &
- *    import("./Observable").OnSignature<import("./render/EventType").MapRenderEventTypes, import("./render/Event").default, Return> &
- *    import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|MapObjectEventTypes|
- *      import("./MapBrowserEventType").Types|import("./MapEventType").Types|
- *      import("./render/EventType").MapRenderEventTypes, Return>} MapEventHandler
- */
-
 
 /**
  * @param {import("./layer/Base.js").default} layer Layer.
@@ -398,15 +370,13 @@ class Map extends BaseObject {
     this.controls = optionsInternal.controls || defaultControls();
 
     // FIXME: 4a358b62 - Cyclic dependency Map/Interaction.
-    /**
-     * @type {Collection<import("./interaction/Interaction.js").default>}
-     * @protected
-     */
     this.interactions =
       optionsInternal.interactions ||
       defaultInteractions({
         onFocusOnly: true,
       });
+
+    this.xinteractions = R.reverse(options.xinteractions || [])
 
     /**
      * @type {Collection<import("./Overlay.js").default>}
@@ -508,6 +478,7 @@ class Map extends BaseObject {
         if (!interaction.setMap) return 
         interaction.setMap(this)
       })
+
     this.overlays_.forEach(this.addOverlayInternal_.bind(this));
   }
 
@@ -573,6 +544,12 @@ class Map extends BaseObject {
   disposeInternal() {
     this.controls.clear();
     this.interactions.clear();
+
+    // TODO: dispose xinteractions
+    // const xinteractions = [...this.xinteractions]
+    // this.xinteractions = []
+    // xinteractions.forEach(fn => fn(null))
+
     this.overlays_.clear();
     this.resizeObserver_.disconnect();
     this.setTarget(null);
@@ -1052,7 +1029,7 @@ class Map extends BaseObject {
 
     // Dispatch event to (Target) listeners first:
     if (this.dispatchEvent(mapBrowserEvent) !== false) {
-      const interactionsArray = this.getInteractions().getArray().slice();
+      const interactionsArray = this.interactions.getArray().slice();
 
       // FIXME: cc20795b - Behavior should not depend on interaction order.
       // Note: Events is handled from last interaction to first.
@@ -1074,7 +1051,11 @@ class Map extends BaseObject {
           // FIXME: c675810f - Which use cases may swallow events mid-flight?
           break;
         }
-      }
+      } // for
+
+      this.xinteractions.reduce((acc, interaction) => {
+        return acc ? interaction(acc) : acc
+      }, mapBrowserEvent)
     }
   }
 
@@ -1396,6 +1377,14 @@ class Map extends BaseObject {
    */
   removeInteraction(interaction) {
     return this.getInteractions().remove(interaction);
+  }
+
+  removeXInteraction(interaction) {
+    if (!interaction) return
+    if (!this.xinteractions.includes(interaction)) return
+
+    this.xinteractions = this.xinteractions.filter(x => x !== interaction)
+    interaction(null)
   }
 
   /**

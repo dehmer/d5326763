@@ -3,6 +3,8 @@
   import * as ol from './ol'
   import { OSM, Vector as VectorSource } from './ol/source'
   import { Tile as TileLayer, Vector as VectorLayer } from './ol/layer'
+  import { Kinetic } from './ol'
+  import { DoubleClickZoom, DragPan, MouseWheelZoom } from './ol/interaction'
   import { Modify } from './ol/interaction/X-Modify'
   import { Draw } from './ol/interaction/X-Draw'
   import GeoJSON from './ol/format/GeoJSON'
@@ -28,35 +30,82 @@
     const vectorSource = new VectorSource({ wrapX: false, features: R.map(readFeature, features) })
     const vectorLayer = new VectorLayer({ source: vectorSource })
 
+    const wrap = interaction => {
+      const fn = interaction.handleEvent.bind(interaction)
+      // return fn
+      return event => {
+        const cont = fn(event)
+        return (!cont || event.propagationStopped)
+          ? null
+          : event
+      }
+    }
+
+    const options = { onFocusOnly: true}
+    const kinetic = new Kinetic(-0.005, 0.05, 100);
+
+    const doubleClickZoom = () => new DoubleClickZoom({
+      delta: options.zoomDelta,
+      duration: options.zoomDuration,
+    })
+
+    const dragPan = () => new DragPan({
+      onFocusOnly: options.onFocusOnly,
+      kinetic: kinetic,
+    })
+
+    const mouseWheelZoom = () => new MouseWheelZoom({
+      onFocusOnly: options.onFocusOnly,
+      duration: options.zoomDuration,
+    })
+ 
+    const modify = () => new Modify({ 
+      source: vectorSource,
+      modifystart: features => console.log('[modifystart]', features),
+      modifyend: features => console.log('[modifyend]', features)
+    })
+
+    const draw = () => new Draw({ 
+      source: vectorSource, 
+      type: 'Polygon',
+      drawstart: feature => console.log('[drawstart]', feature),
+      drawend: feature => console.log('[drawend]', geoJSON.writeFeature(feature)),
+      drawabort: feature => console.log('[drawabort]', feature)
+    })
+
+    const xinteractions = [
+      // event => { console.log(['xinteraction/1'], event); return event },
+      // event => { console.log(['xinteraction/2'], event); return event },
+      // event => { console.log(['xinteraction/3'], event); return event },
+      wrap(doubleClickZoom()),
+      wrap(dragPan()),
+      wrap(mouseWheelZoom()),
+      wrap(draw()),
+      wrap(modify())
+    ]
+
     let map = new ol.Map({
       target,
       layers: [tileLayer, vectorLayer],
       view,
+      xinteractions,
+      interactions: [],
       controls: []
     })
 
+    // setTimeout(() => map.removeXInteraction(xinteractions[4]), 5000)
+
     // draw interaction.
     // ;(() => {
-    //   const interaction = new Draw({ 
-    //     source: vectorSource, 
-    //     type: 'Polygon',
-    //     drawstart: feature => console.log('[drawstart]', feature),
-    //     drawend: feature => console.log('[drawend]', geoJSON.writeFeature(feature)),
-    //     drawabort: feature => console.log('[drawabort]', feature)
-    //   })
-
+    //   const interaction = draw()
     //   map.addInteraction(interaction)
     // })()
 
     // modify interaction.
-    ;(() => {
-      const interaction = new Modify({ 
-        source: vectorSource,
-        modifystart: features => console.log('[modifystart]', features),
-        modifyend: features => console.log('[modifyend]', features)
-      })
-      map.addInteraction(interaction)
-    })()
+    // ;(() => {
+    //   const interaction = modify()
+    //   map.addInteraction(interaction)
+    // })()
 
 
     const destroy = () => {
