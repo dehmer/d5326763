@@ -2,8 +2,9 @@
  * @module ol/interaction/KeyboardZoom
  */
 import EventType from '../events/EventType.js';
-import Interaction, {zoomByDelta} from './Interaction.js';
+import { zoomByDelta } from './Interaction.js';
 import {targetNotEditable} from '../events/condition.js';
+import { context } from './Interaction'
 
 /**
  * @typedef {Object} Options
@@ -28,14 +29,14 @@ import {targetNotEditable} from '../events/condition.js';
  * See also {@link module:ol/interaction/KeyboardPan~KeyboardPan}.
  * @api
  */
-class KeyboardZoom extends Interaction {
+class KeyboardZoom {
+
   /**
    * @param {Options} [options] Options.
    */
   constructor(options) {
-    super();
-
     options = options ? options : {};
+    this.context = context()
 
     /**
      * @private
@@ -64,6 +65,10 @@ class KeyboardZoom extends Interaction {
    * @return {boolean} `false` to stop event propagation.
    */
   handleEvent(mapBrowserEvent) {
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.context.setMap(map)
+    if (!map) return false
+
     let stopEvent = false;
     if (
       mapBrowserEvent.type == EventType.KEYDOWN ||
@@ -74,10 +79,8 @@ class KeyboardZoom extends Interaction {
       );
       const key = keyEvent.key;
       if (this.condition_(mapBrowserEvent) && (key === '+' || key === '-')) {
-        const map = mapBrowserEvent.map;
         const delta = key === '+' ? this.delta_ : -this.delta_;
-        const view = map.getView();
-        zoomByDelta(view, delta, undefined, this.duration_);
+        zoomByDelta(this.context, delta, undefined, this.duration_);
         keyEvent.preventDefault();
         stopEvent = true;
       }

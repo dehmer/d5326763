@@ -1,11 +1,8 @@
-import flyd from 'flyd'
-import { skipRepeats } from './flyd'
 import Circle from '../geom/Circle.js';
 import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
 import Feature from '../Feature.js';
 import GeometryCollection from '../geom/GeometryCollection.js';
-import InteractionProperty from './Property.js';
 import LineString from '../geom/LineString.js';
 import MapBrowserEvent from '../MapBrowserEvent.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
@@ -39,6 +36,7 @@ import {
 } from '../coordinate.js';
 import {fromUserCoordinate, getUserProjection} from '../proj.js';
 import {getStrideForLayout} from '../geom/SimpleGeometry.js';
+import { context } from './Interaction'
 
 
 /**
@@ -124,7 +122,7 @@ export const DrawEventType = {
  * Events emitted by {@link module:ol/interaction/Draw~Draw} instances are
  * instances of this type.
  */
-export class DrawEvent extends Event {
+class DrawEvent extends Event {
   /**
    * @param {DrawEventType} type Type.
    * @param {Feature} feature The feature drawn.
@@ -287,7 +285,7 @@ export function appendGeometryTraceTargets(coordinate, geometry, targets) {
  */
 const sharedUpdateInfo = {index: -1, endIndex: NaN};
 
-export function getTraceTargetUpdate(coordinate, traceState, map, snapTolerance) {
+export function getTraceTargetUpdate(coordinate, traceState, context, snapTolerance) {
   const x = coordinate[0];
   const y = coordinate[1];
 
@@ -349,7 +347,7 @@ export function getTraceTargetUpdate(coordinate, traceState, map, snapTolerance)
       newTarget.coordinates,
       newEndIndex
     );
-    const pixel = map.getPixelFromCoordinate(newCoordinate);
+    const pixel = context.pixelFromCoordinate(newCoordinate);
     if (distance(pixel, traceState.startPx) > snapTolerance) {
       considerBothDirections = false;
     }
@@ -511,34 +509,33 @@ export function interpolateCoordinate(coordinates, index) {
  * @fires DrawEvent
  * @api
  */
-export class Draw extends PointerInteraction {
+export class Draw {
+
   /**
    * @param {Options} options Options.
    */
   constructor(options) {
-    const pointerOptions = /** @type {import("./Pointer.js").Options} */ (
-      options
-    );
-    if (!pointerOptions.stopDown) {
-      pointerOptions.stopDown = FALSE;
-    }
 
-    super(pointerOptions);
+    // Callbacks instead of events:
+    const noop = () => {}
+    this.drawstart_ = options.drawstart || noop
+    this.drawend_ = options.drawend || noop
+    this.drawabort_ = options.drawabort || noop
 
-    /***
-     * @type {DrawOnSignature<import("../events").EventsKey>}
-     */
-    this.on;
+    // Composition over inheritance:
+    this.pointer_ = new PointerInteraction({
+      stopDown: FALSE,
+      handleDownEvent: this.handleDownEvent.bind(this),
+      handleUpEvent: this.handleUpEvent.bind(this)
+    })
 
-    /***
-     * @type {DrawOnSignature<import("../events").EventsKey>}
-     */
-    this.once;
-
-    /***
-     * @type {DrawOnSignature<void>}
-     */
-    this.un;
+    this.context = context({
+      initialize: map => this.overlay_.setMap(map),
+      dispose: () => {
+        this.abortDrawing()
+        this.overlay_.setMap(null)
+      }
+    })
 
     /**
      * @type {boolean}
@@ -858,26 +855,15 @@ export class Draw extends PointerInteraction {
      * @private
      */
     this.traceSource_ = options.traceSource || options.source || null;
-
-    this.$active = flyd.stream(true) // stream with initial value `true`
-    this.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
-
-    this.$map = flyd.stream()
-    this.$view = flyd.combine(skipRepeats($map => $map().getView()), [this.$map])
-    this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
-    this.$getPixelFromCoordinate = flyd.combine($map => $map().getPixelFromCoordinate.bind($map()), [this.$map])
-    this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
-
-    // Optimization: Only update streams if values are (referentially) different:
-    this.$uniqMap = flyd.combine(skipRepeats($map => $map()), [this.$map])
-    this.$uniqActive = flyd.combine(skipRepeats($active => $active()), [this.$active])
-
-    // Side-effect:
-    flyd.combine(($map, $active) => {
-      if (!$map() || !$active()) this.abortDrawing()      
-      this.overlay_.setMap($active() ? $map() : null)
-    }, [this.$uniqMap, this.$uniqActive])
   } // constructor
+
+  getActive() {
+    return this.active_.getActive()
+  }
+
+  setActive(value) {
+    this.active_.setActive(value)
+  }
 
   /**
    * Toggle tracing mode or set a tracing condition.
@@ -906,24 +892,27 @@ export class Draw extends PointerInteraction {
     return this.overlay_;
   }
 
-  handleEvent(event) {
-    this.$map(event.map)
+  handleEvent(mapBrowserEvent) {
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.context.setMap(map)
+    if (!map) return false
 
-    if (event.originalEvent.type === EventType.CONTEXTMENU) {
+    if (mapBrowserEvent.originalEvent.type === EventType.CONTEXTMENU) {
       // Avoid context menu for long taps when drawing on mobile
-      event.originalEvent.preventDefault();
+      mapBrowserEvent.originalEvent.preventDefault();
     }
-    this.freehand_ = this.mode_ !== 'Point' && this.freehandCondition_(event);
-    let move = event.type === MapBrowserEventType.POINTERMOVE;
+    
+    this.freehand_ = this.mode_ !== 'Point' && this.freehandCondition_(mapBrowserEvent);
+    let move = mapBrowserEvent.type === MapBrowserEventType.POINTERMOVE;
     let pass = true;
     if (
       !this.freehand_ &&
       this.lastDragTime_ &&
-      event.type === MapBrowserEventType.POINTERDRAG
+      mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG
     ) {
       const now = Date.now();
       if (now - this.lastDragTime_ >= this.dragVertexDelay_) {
-        this.downPx_ = event.pixel;
+        this.downPx_ = mapBrowserEvent.pixel;
         this.shouldHandle_ = !this.freehand_;
         move = true;
       } else {
@@ -936,36 +925,36 @@ export class Draw extends PointerInteraction {
     }
     if (
       this.freehand_ &&
-      event.type === MapBrowserEventType.POINTERDRAG &&
+      mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG &&
       this.sketchFeature_ !== null
     ) {
-      this.addToDrawing_(event.coordinate);
+      this.addToDrawing_(mapBrowserEvent.coordinate);
       pass = false;
     } else if (
       this.freehand_ &&
-      event.type === MapBrowserEventType.POINTERDOWN
+      mapBrowserEvent.type === MapBrowserEventType.POINTERDOWN
     ) {
       pass = false;
-    } else if (move && this.getPointerCount() < 2) {
-      pass = event.type === MapBrowserEventType.POINTERMOVE;
+    } else if (move && this.pointer_.getPointerCount() < 2) {
+      pass = mapBrowserEvent.type === MapBrowserEventType.POINTERMOVE;
       if (pass && this.freehand_) {
-        this.handlePointerMove_(event);
+        this.handlePointerMove_(mapBrowserEvent);
         if (this.shouldHandle_) {
           // Avoid page scrolling when freehand drawing on mobile
-          event.originalEvent.preventDefault();
+          mapBrowserEvent.originalEvent.preventDefault();
         }
       } else if (
-        event.originalEvent.pointerType === 'mouse' ||
-        (event.type === MapBrowserEventType.POINTERDRAG &&
+        mapBrowserEvent.originalEvent.pointerType === 'mouse' ||
+        (mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG &&
           this.downTimeout_ === undefined)
       ) {
-        this.handlePointerMove_(event);
+        this.handlePointerMove_(mapBrowserEvent);
       }
-    } else if (event.type === MapBrowserEventType.DBLCLICK) {
+    } else if (mapBrowserEvent.type === MapBrowserEventType.DBLCLICK) {
       pass = false;
     }
 
-    return super.handleEvent(event) && pass;
+    return this.pointer_.handleEvent(mapBrowserEvent) && pass;
   }
 
   /**
@@ -974,7 +963,6 @@ export class Draw extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleDownEvent(event) {
-    this.$map(event.map)
     this.shouldHandle_ = !this.freehand_;
 
     if (this.freehand_) {
@@ -1028,14 +1016,16 @@ export class Draw extends PointerInteraction {
       return;
     }
 
-    const lowerLeft = this.$getCoordinateFromPixel()([
+    const lowerLeft = this.context.coordinateFromPixel([
       event.pixel[0] - this.snapTolerance_,
       event.pixel[1] + this.snapTolerance_,
     ]);
-    const upperRight = this.$getCoordinateFromPixel()([
+
+    const upperRight = this.context.coordinateFromPixel([
       event.pixel[0] + this.snapTolerance_,
       event.pixel[1] - this.snapTolerance_,
     ]);
+
     const extent = boundingExtent([lowerLeft, upperRight]);
     const features = this.traceSource_.getFeaturesInExtent(extent);
     if (features.length === 0) {
@@ -1179,7 +1169,7 @@ export class Draw extends PointerInteraction {
     const updatedTraceTarget = getTraceTargetUpdate(
       event.coordinate,
       traceState,
-      this.$map(),
+      this.context,
       this.snapTolerance_
     );
 
@@ -1214,7 +1204,7 @@ export class Draw extends PointerInteraction {
       target.endIndex
     );
 
-    const pixel = this.$getPixelFromCoordinate()(coordinate);
+    const pixel = this.context.pixelFromCoordinate(coordinate);
     event.coordinate = coordinate;
     event.pixel = [Math.round(pixel[0]), Math.round(pixel[1])];
   }
@@ -1225,10 +1215,9 @@ export class Draw extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleUpEvent(event) {
-    this.$map(event.map)
     let pass = true;
 
-    if (this.getPointerCount() === 0) {
+    if (this.pointer_.getPointerCount() === 0) {
       if (this.downTimeout_) {
         clearTimeout(this.downTimeout_);
         this.downTimeout_ = undefined;
@@ -1337,7 +1326,7 @@ export class Draw extends PointerInteraction {
       if (potentiallyDone) {
         for (let i = 0, ii = potentiallyFinishCoordinates.length; i < ii; i++) {
           const finishCoordinate = potentiallyFinishCoordinates[i];
-          const finishPixel = this.$getPixelFromCoordinate()(finishCoordinate);
+          const finishPixel = this.context.pixelFromCoordinate(finishCoordinate);
           const dx = pixel[0] - finishPixel[0];
           const dy = pixel[1] - finishPixel[1];
           const snapTolerance = this.freehand_ ? 1 : this.snapTolerance_;
@@ -1416,7 +1405,7 @@ export class Draw extends PointerInteraction {
     const geometry = this.geometryFunction_(
       this.sketchCoords_,
       undefined,
-      this.$projection()
+      this.context.projection()
     );
     this.sketchFeature_ = new Feature();
     if (this.geometryName_) {
@@ -1424,9 +1413,7 @@ export class Draw extends PointerInteraction {
     }
     this.sketchFeature_.setGeometry(geometry);
     this.updateSketchFeatures_();
-    this.dispatchEvent(
-      new DrawEvent(DrawEventType.DRAWSTART, this.sketchFeature_)
-    );
+    this.drawstart_(this.sketchFeature_)
   }
 
   /**
@@ -1446,7 +1433,7 @@ export class Draw extends PointerInteraction {
     } else if (this.mode_ === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       last = coordinates[coordinates.length - 1];
-      if (this.atFinish_(this.$getPixelFromCoordinate()(coordinate))) {
+      if (this.atFinish_(this.context.pixelFromCoordinate(coordinate))) {
         // snap to finish
         coordinate = this.finishCoordinate_.slice();
       }
@@ -1459,7 +1446,7 @@ export class Draw extends PointerInteraction {
     this.geometryFunction_(
       /** @type {!LineCoordType} */ (this.sketchCoords_),
       geometry,
-      this.$projection()
+      this.context.projection()
     );
     if (this.sketchPoint_) {
       const sketchPointGeom = this.sketchPoint_.getGeometry();
@@ -1495,7 +1482,7 @@ export class Draw extends PointerInteraction {
         }
       }
       coordinates.push(coordinate.slice());
-      this.geometryFunction_(coordinates, geometry, this.$projection());
+      this.geometryFunction_(coordinates, geometry, this.context.projection());
     } else if (mode === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       if (coordinates.length >= this.maxPoints_) {
@@ -1509,7 +1496,7 @@ export class Draw extends PointerInteraction {
       if (done) {
         this.finishCoordinate_ = coordinates[0];
       }
-      this.geometryFunction_(this.sketchCoords_, geometry, this.$projection());
+      this.geometryFunction_(this.sketchCoords_, geometry, this.context.projection());
     }
     this.createOrUpdateSketchPoint_(coordinate.slice());
     this.updateSketchFeatures_();
@@ -1538,7 +1525,7 @@ export class Draw extends PointerInteraction {
           coordinates[coordinates.length - 1] = finishCoordinate;
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
-        this.geometryFunction_(coordinates, geometry, this.$projection());
+        this.geometryFunction_(coordinates, geometry, this.context.projection());
         if (geometry.getType() === 'Polygon' && this.sketchLine_) {
           this.createOrUpdateCustomSketchLine_(
             /** @type {Polygon} */ (geometry)
@@ -1554,7 +1541,7 @@ export class Draw extends PointerInteraction {
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
         sketchLineGeom.setCoordinates(coordinates);
-        this.geometryFunction_(this.sketchCoords_, geometry, this.$projection());
+        this.geometryFunction_(this.sketchCoords_, geometry, this.context.projection());
       }
 
       if (coordinates.length === 1) {
@@ -1591,11 +1578,11 @@ export class Draw extends PointerInteraction {
     if (this.mode_ === 'LineString') {
       // remove the redundant last point
       coordinates.pop();
-      this.geometryFunction_(coordinates, geometry, this.$projection());
+      this.geometryFunction_(coordinates, geometry, this.context.projection());
     } else if (this.mode_ === 'Polygon') {
       // remove the redundant last point in ring
       /** @type {PolyCoordType} */ (coordinates)[0].pop();
-      this.geometryFunction_(coordinates, geometry, this.$projection());
+      this.geometryFunction_(coordinates, geometry, this.context.projection());
       coordinates = geometry.getCoordinates();
     }
 
@@ -1615,7 +1602,7 @@ export class Draw extends PointerInteraction {
     }
 
     // First dispatch event to allow full set up of feature
-    this.dispatchEvent(new DrawEvent(DrawEventType.DRAWEND, sketchFeature));
+    this.drawend_(sketchFeature)
 
     // Then insert feature
     if (this.features_) {
@@ -1649,7 +1636,7 @@ export class Draw extends PointerInteraction {
   abortDrawing() {
     const sketchFeature = this.abortDrawing_();
     if (sketchFeature) {
-      this.dispatchEvent(new DrawEvent(DrawEventType.DRAWABORT, sketchFeature));
+      this.drawabort_(sketchFeature)
     }
   }
 
@@ -1721,9 +1708,7 @@ export class Draw extends PointerInteraction {
     this.sketchCoords_.push(last.slice());
     this.sketchPoint_ = new Feature(new Point(last));
     this.updateSketchFeatures_();
-    this.dispatchEvent(
-      new DrawEvent(DrawEventType.DRAWSTART, this.sketchFeature_)
-    );
+    this.drawstart_(this.sketchFeature_)
   }
 
   /**

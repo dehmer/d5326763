@@ -1,6 +1,5 @@
-import flyd from 'flyd'
 import EventType from '../events/EventType.js';
-import Interaction, {zoomByDelta} from './Interaction.js';
+import { zoomByDelta, context } from './Interaction.js';
 import {DEVICE_PIXEL_RATIO, FIREFOX} from '../has.js';
 import {all, always, focusWithTabindex} from '../events/condition.js';
 import {clamp} from '../math.js';
@@ -33,16 +32,15 @@ import {clamp} from '../math.js';
  * Allows the user to zoom the map by scrolling the mouse wheel.
  * @api
  */
-class MouseWheelZoom extends Interaction {
+class MouseWheelZoom {
+
   /**
    * @param {Options} [options] Options.
    */
   constructor(options) {
     options = options ? options : {};
 
-    super(
-      /** @type {import("./Interaction.js").InteractionOptions} */ (options)
-    );
+    this.context = context()
 
     /**
      * @private
@@ -142,15 +140,6 @@ class MouseWheelZoom extends Interaction {
      * @type {number}
      */
     this.deltaPerZoom_ = 300;
-
-    this.$map = flyd.stream()
-    this.$view = flyd.combine($map => $map().getView(), [this.$map])
-    this.$beginInteraction = flyd.combine($view => $view().beginInteraction.bind($view()), [this.$view])
-    this.$endInteraction = flyd.combine($view => $view().endInteraction.bind($view()), [this.$view])
-    this.$getConstrainResolution = flyd.combine($view => $view().getConstrainResolution.bind($view()), [this.$view])
-    this.$getAnimating = flyd.combine($view => $view().getAnimating.bind($view()), [this.$view])
-    this.$cancelAnimations = flyd.combine($view => $view().cancelAnimations.bind($view()), [this.$view])
-    this.$adjustZoom = flyd.combine($view => $view().adjustZoom.bind($view()), [this.$view])
   }
 
   /**
@@ -158,21 +147,26 @@ class MouseWheelZoom extends Interaction {
    */
   endInteraction_() {
     this.trackpadTimeoutId_ = undefined;
-    if (!this.$map()) return;
+    if (!this.context.initialized()) return;
     
-    this.$endInteraction()(
+    this.context.endInteraction(
       undefined,
       this.lastDelta_ ? (this.lastDelta_ > 0 ? 1 : -1) : 0,
       this.lastAnchor_
     );
   }
 
-  handleEvent(mapBrowserEvent) {
+  handleEvent(mapBrowserEvent) {   
+    
+
+    
     if (!this.condition_(mapBrowserEvent)) return true;
     const type = mapBrowserEvent.type;
     if (type !== EventType.WHEEL) return true;
 
-    this.$map(mapBrowserEvent.map)
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.context.setMap(map)
+    if (!map) return false
 
     const wheelEvent = /** @type {WheelEvent} */ (
       mapBrowserEvent.originalEvent
@@ -213,21 +207,21 @@ class MouseWheelZoom extends Interaction {
 
     if (
       this.mode_ === 'trackpad' &&
-      !(this.$getConstrainResolution()() || this.constrainResolution_)
+      !(this.context.constrainResolution() || this.constrainResolution_)
     ) {
       if (this.trackpadTimeoutId_) {
         clearTimeout(this.trackpadTimeoutId_);
       } else {
-        if (this.$getAnimating()()) {
-          this.$cancelAnimations()();
+        if (this.context.animating()) {
+          this.context.cancelAnimations();
         }
-        this.$beginInteraction()();
+        this.context.beginInteraction();
       }
       this.trackpadTimeoutId_ = setTimeout(
         this.endInteraction_.bind(this),
         this.timeout_
       );
-      this.$adjustZoom()(-delta / this.deltaPerZoom_, this.lastAnchor_);
+      this.context.adjustZoom(-delta / this.deltaPerZoom_, this.lastAnchor_);
       this.startTime_ = now;
       return false;
     }
@@ -246,8 +240,8 @@ class MouseWheelZoom extends Interaction {
   }
 
   handleWheelZoom_() {
-    if (this.$getAnimating()()) {
-      this.$cancelAnimations()();
+    if (this.context.animating()) {
+      this.context.cancelAnimations();
     }
 
     let delta =
@@ -256,11 +250,12 @@ class MouseWheelZoom extends Interaction {
         -this.maxDelta_ * this.deltaPerZoom_,
         this.maxDelta_ * this.deltaPerZoom_
       ) / this.deltaPerZoom_;
-    if (this.$getConstrainResolution()() || this.constrainResolution_) {
+    if (this.context.constrainResolution() || this.constrainResolution_) {
       // view has a zoom constraint, zoom by 1
       delta = delta ? (delta > 0 ? 1 : -1) : 0;
     }
-    zoomByDelta(this.$view(), delta, this.lastAnchor_, this.duration_);
+
+    zoomByDelta(this.context, delta, this.lastAnchor_, this.duration_);
 
     this.mode_ = undefined;
     this.totalDelta_ = 0;

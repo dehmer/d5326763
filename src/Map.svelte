@@ -4,9 +4,7 @@
   import { OSM, Vector as VectorSource } from './ol/source'
   import { Tile as TileLayer, Vector as VectorLayer } from './ol/layer'
   import { Kinetic } from './ol'
-  import { DoubleClickZoom, DragPan, MouseWheelZoom } from './ol/interaction'
-  import { Modify } from './ol/interaction/X-Modify'
-  import { Draw } from './ol/interaction/X-Draw'
+  import { Draw, Modify, DoubleClickZoom, DragPan, KeyboardZoom, MouseWheelZoom } from './ol/interaction'
   import GeoJSON from './ol/format/GeoJSON'
 
   const geoJSON = new GeoJSON()
@@ -32,7 +30,6 @@
 
     const wrap = interaction => {
       const fn = interaction.handleEvent.bind(interaction)
-      // return fn
       return event => {
         const cont = fn(event)
         return (!cont || event.propagationStopped)
@@ -52,6 +49,11 @@
     const dragPan = () => new DragPan({
       onFocusOnly: options.onFocusOnly,
       kinetic: kinetic,
+    })
+
+    const keyboardZoom = () => new KeyboardZoom({
+      delta: options.zoomDelta,
+      duration: options.zoomDuration,
     })
 
     const mouseWheelZoom = () => new MouseWheelZoom({
@@ -79,6 +81,7 @@
       // event => { console.log(['xinteraction/3'], event); return event },
       wrap(doubleClickZoom()),
       wrap(dragPan()),
+      wrap(keyboardZoom()),
       wrap(mouseWheelZoom()),
       wrap(draw()),
       wrap(modify())

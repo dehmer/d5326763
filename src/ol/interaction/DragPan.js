@@ -1,5 +1,3 @@
-import flyd from 'flyd'
-import { skipRepeats, nullable } from './flyd'
 import PointerInteraction, {
   centroid as centroidFromPointers,
 } from './Pointer.js';
@@ -15,6 +13,7 @@ import {
   rotate as rotateCoordinate,
   scale as scaleCoordinate,
 } from '../coordinate.js';
+import { context } from './Interaction'
 
 
 /**
@@ -22,16 +21,20 @@ import {
  * Allows the user to pan the map by dragging the map.
  * @api
  */
-class DragPan extends PointerInteraction {
+class DragPan {
   /**
    * @param {Options} [options] Options.
    */
   constructor(options) {
-    super({
-      stopDown: FALSE,
-    });
-
     options = options ? options : {};
+
+    // Composition over inheritance:
+    this.pointer_ = new PointerInteraction({
+      stopDown: FALSE,
+      handleDownEvent: this.handleDownEvent.bind(this),
+      handleUpEvent: this.handleUpEvent.bind(this),
+      handleDragEvent: this.handleDragEvent.bind(this)
+    })
 
     /**
      * @private
@@ -72,9 +75,14 @@ class DragPan extends PointerInteraction {
      */
     this.noKinetic_ = false;
 
-    this.$map = flyd.stream()
-    this.$mapNoRepeats = flyd.combine(skipRepeats(), [this.$map])
-    this.$view = flyd.combine(nullable($map => $map().getView()), [this.$mapNoRepeats])
+    this.context = context()
+  }
+
+  handleEvent(mapBrowserEvent) {
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.context.setMap(map)
+    if (!map) return false
+    return this.pointer_.handleEvent(mapBrowserEvent)
   }
 
   /**
@@ -82,15 +90,13 @@ class DragPan extends PointerInteraction {
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    */
   handleDragEvent(mapBrowserEvent) {
-    this.$map(mapBrowserEvent.map)
-
     if (!this.panning_) {
       this.panning_ = true;
-      this.$view().beginInteraction();
+      this.context.beginInteraction();
     }
 
-    const targetPointers = this.targetPointers;
-    const centroid = this.$map().getEventPixel(centroidFromPointers(targetPointers));
+    const targetPointers = this.pointer_.targetPointers;
+    const centroid = this.context.eventPixel(centroidFromPointers(targetPointers));
     if (targetPointers.length == this.lastPointersCount_) {
       if (this.kinetic_) {
         this.kinetic_.update(centroid[0], centroid[1]);
@@ -102,9 +108,9 @@ class DragPan extends PointerInteraction {
           centroid[1] - this.lastCentroid[1],
         ];
 
-        scaleCoordinate(delta, this.$view().getResolution());
-        rotateCoordinate(delta, this.$view().getRotation());
-        this.$view().adjustCenterInternal(delta);
+        scaleCoordinate(delta, this.context.resolution());
+        rotateCoordinate(delta, this.context.rotation());
+        this.context.adjustCenterInternal(delta);
       }
     } else if (this.kinetic_) {
       // reset so we don't overestimate the kinetic energy after
@@ -122,28 +128,26 @@ class DragPan extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleUpEvent(mapBrowserEvent) {
-    this.$map(mapBrowserEvent.map)
-
-    if (this.targetPointers.length === 0) {
+    if (this.pointer_.targetPointers.length === 0) {
       if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
         const distance = this.kinetic_.getDistance();
         const angle = this.kinetic_.getAngle();
-        const center = this.$view().getCenterInternal();
-        const centerpx = this.$map().getPixelFromCoordinateInternal(center);
-        const dest = this.$map().getCoordinateFromPixelInternal([
+        const center = this.context.centerInternal();
+        const centerpx = this.context.pixelFromCoordinateInternal(center);
+        const dest = this.context.coordinateFromPixelInternal([
           centerpx[0] - distance * Math.cos(angle),
           centerpx[1] - distance * Math.sin(angle),
         ]);
 
-        this.$view().animateInternal({
-          center: this.$view().getConstrainedCenter(dest),
+        this.context.animateInternal({
+          center: this.context.constrainedCenter(dest),
           duration: 500,
           easing: easeOut,
         });
       }
       if (this.panning_) {
         this.panning_ = false;
-        this.$view().endInteraction();
+        this.context.endInteraction();
       }
 
       return false;
@@ -165,20 +169,18 @@ class DragPan extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleDownEvent(mapBrowserEvent) {
-    this.$map(mapBrowserEvent.map)
-
-    if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
+    if (this.pointer_.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
       this.lastCentroid = null;
       // stop any current animation
-      if (this.$view().getAnimating()) {
-        this.$view().cancelAnimations();
+      if (this.context.animating()) {
+        this.context.cancelAnimations();
       }
       if (this.kinetic_) {
         this.kinetic_.begin();
       }
       // No kinetic as soon as more than one pointer on the screen is
       // detected. This is to prevent nasty pans after pinch.
-      this.noKinetic_ = this.targetPointers.length > 1;
+      this.noKinetic_ = this.pointer_.targetPointers.length > 1;
       return true;
     }
     return false;

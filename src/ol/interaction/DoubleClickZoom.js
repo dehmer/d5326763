@@ -1,5 +1,4 @@
-import flyd from 'flyd'
-import Interaction, {zoomByDelta} from './Interaction.js';
+import { zoomByDelta, context } from './Interaction.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
 
 /**
@@ -13,14 +12,13 @@ import MapBrowserEventType from '../MapBrowserEventType.js';
  * Allows the user to zoom by double-clicking on the map.
  * @api
  */
-class DoubleClickZoom extends Interaction {
+class DoubleClickZoom {
   /**
    * @param {Options} [options] Options.
    */
   constructor(options) {
-    super();
-
     options = options ? options : {};
+    this.context = context()
 
     /**
      * @private
@@ -33,13 +31,12 @@ class DoubleClickZoom extends Interaction {
      * @type {number}
      */
     this.duration_ = options.duration !== undefined ? options.duration : 250;
-
-    this.$map = flyd.stream()
-    this.$view = flyd.combine($map => $map().getView(), [this.$map])
   }
 
   handleEvent(mapBrowserEvent) {
-    this.$map(mapBrowserEvent.map)
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.context.setMap(map)
+    if (!map) return false
 
     let stopEvent = false;
     if (mapBrowserEvent.type == MapBrowserEventType.DBLCLICK) {
@@ -48,7 +45,7 @@ class DoubleClickZoom extends Interaction {
       );
       const anchor = mapBrowserEvent.coordinate;
       const delta = browserEvent.shiftKey ? -this.delta_ : this.delta_;
-      zoomByDelta(this.$view(), delta, anchor, this.duration_);
+      zoomByDelta(this.context, delta, anchor, this.duration_);
       browserEvent.preventDefault();
       stopEvent = true;
     }

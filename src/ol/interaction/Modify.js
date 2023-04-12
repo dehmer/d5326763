@@ -1,12 +1,9 @@
-import flyd from 'flyd'
-import { skipRepeats } from './flyd'
 import Collection from '../Collection.js';
 import CollectionEventType from '../CollectionEventType.js';
 import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
 import Feature from '../Feature.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
-import InteractionProperty from './Property.js';
 import Point from '../geom/Point.js';
 import PointerInteraction from './Pointer.js';
 import RBush from '../structs/RBush.js';
@@ -42,6 +39,7 @@ import {
   toUserExtent,
 } from '../proj.js';
 import {getUid} from '../util.js';
+import { context } from './Interaction'
 
 /**
  * The segment index assigned to a circle's center when
@@ -132,44 +130,33 @@ export class ModifyEvent extends Event {
  * @fires ModifyEvent
  * @api
  */
-class Modify extends PointerInteraction {
+class Modify {
   /**
    * @param {Options} options Options.
    */
   constructor(options) {
-    super(/** @type {import("./Pointer.js").Options} */ (options));
 
-    this.$active = flyd.stream(true) // stream with initial value `true`
-    this.$activeNoRepeats = flyd.combine(skipRepeats(), [this.$active])
-    this.addChangeListener(InteractionProperty.ACTIVE, () => this.$active(this.getActive()));
+    // Callbacks instead of events:
+    const noop = () => {}
+    this.modifystart_ = options.modifystart || noop
+    this.modifyend_ = options.modifyend || noop
 
-    this.$map = flyd.stream()
-    this.$mapNoRepeats = flyd.combine(skipRepeats(), [this.$map])
-    this.$view = flyd.combine($map => $map().getView(), [this.$mapNoRepeats])
-    this.$isRendered = flyd.combine($map => $map().isRendered.bind($map()), [this.$map])
-    this.$getCoordinateFromPixel = flyd.combine($map => $map().getCoordinateFromPixel.bind($map()), [this.$map])
-    this.$getCoordinateFromPixelInternal = flyd.combine($map => $map().getCoordinateFromPixelInternal.bind($map()), [this.$map])
-    this.$getPixelFromCoordinate = flyd.combine($map => $map().getPixelFromCoordinate.bind($map()), [this.$map])
-    this.$forEachFeatureAtPixel = flyd.combine($map => $map().forEachFeatureAtPixel.bind($map()), [this.$map])
-    this.$getInteracting = flyd.combine($view => $view().getInteracting.bind($view()), [this.$view])
-    this.$getResolution = flyd.combine($view => $view().getResolution.bind($view()), [this.$view])
+    // Composition over inheritance:
+    this.pointer_ = new PointerInteraction({
+      handleDownEvent: this.handleDownEvent.bind(this),
+      handleDragEvent: this.handleDragEvent.bind(this),
+      handleUpEvent: this.handleUpEvent.bind(this)
+    })
 
-    // Note: Won't react to changed projection unless view is updated.
-    this.$projection = flyd.combine($view => $view().getProjection(), [this.$view])
-
-    // Side-effect:
-    flyd.combine($map => {
-      this.overlay_.setMap($map())
-    }, [this.$mapNoRepeats, this.$activeNoRepeats])
-
-    // Side-effect:
-    flyd.combine($active => {
-      if (this.vertexFeature_ && !$active()) {
+    this.context = context({
+      initialize: map => this.overlay_.setMap(map),
+      dispose: () => {
+        if (!this.vertexFeature_) return
         this.overlay_.getSource().removeFeature(this.vertexFeature_)
         this.vertexFeature_ = null
       }
-    }, [this.$activeNoRepeats])
-  
+    })
+
     /** @private */
     this.boundHandleFeatureChange_ = this.handleFeatureChange_.bind(this);
 
@@ -375,11 +362,16 @@ class Modify extends PointerInteraction {
       options.snapToPointer === undefined
         ? !this.hitDetection_
         : options.snapToPointer;
-
-
-
   } // constructor
 
+  getActive() {
+    return this.active_.getActive()
+  }
+
+  setActive(value) {
+    this.active_.setActive(value)
+  }
+ 
   /**
    * @param {Feature} feature Feature.
    * @private
@@ -393,9 +385,10 @@ class Modify extends PointerInteraction {
       }
     }
 
-    if (this.$isRendered() && this.$isRendered()() && this.getActive()) {
+    if (this.context.initialized() && this.context.rendered()) {
       this.handlePointerAtPixel_(this.lastPixel_);
     }
+
     feature.addEventListener(EventType.CHANGE, this.boundHandleFeatureChange_);
   }
 
@@ -420,13 +413,7 @@ class Modify extends PointerInteraction {
       if (this.featuresBeingModified_.getLength() === 0) {
         this.featuresBeingModified_ = null;
       } else {
-        this.dispatchEvent(
-          new ModifyEvent(
-            ModifyEventType.MODIFYSTART,
-            this.featuresBeingModified_,
-            evt
-          )
-        );
+        this.modifystart_(this.featuresBeingModified_)
       }
     }
   }
@@ -716,9 +703,10 @@ class Modify extends PointerInteraction {
     let circleGeometry = /** @type {import("../geom/Geometry.js").default} */ (
       geometry
     );
+
     const userProjection = getUserProjection();
-    if (userProjection && this.$map()()) {
-      const projection = this.$projection();
+    if (userProjection) {
+      const projection = this.context.projection();
       circleGeometry = circleGeometry
         .clone()
         .transform(userProjection, projection);
@@ -771,7 +759,9 @@ class Modify extends PointerInteraction {
    * @return {boolean} `false` to stop event propagation.
    */
   handleEvent(mapBrowserEvent) {
-    this.$map(mapBrowserEvent.map)
+    const map = mapBrowserEvent ? mapBrowserEvent.map : null
+    this.context.setMap(map)
+    if (!map) return false
 
     if (!mapBrowserEvent.originalEvent) {
       return true;
@@ -780,7 +770,7 @@ class Modify extends PointerInteraction {
 
     let handled;
     if (
-      !this.$getInteracting()() &&
+      !this.context.interacting() &&
       mapBrowserEvent.type == MapBrowserEventType.POINTERMOVE &&
       !this.handlingDownUpSequence
     ) {
@@ -801,7 +791,7 @@ class Modify extends PointerInteraction {
       this.ignoreNextSingleClick_ = false;
     }
 
-    return super.handleEvent(mapBrowserEvent) && !handled;
+    return this.pointer_.handleEvent(mapBrowserEvent) && !handled;
   }
 
   /**
@@ -809,8 +799,6 @@ class Modify extends PointerInteraction {
    * @param {import("../MapBrowserEvent.js").default} evt Event.
    */
   handleDragEvent(evt) {
-    this.$map(evt.map)
-
     this.ignoreNextSingleClick_ = false;
     this.willModifyFeatures_(evt, this.dragSegments_);
 
@@ -882,7 +870,7 @@ class Modify extends PointerInteraction {
           } else {
             // We're dragging the circle's circumference:
             this.changingFeature_ = true;
-            const projection = this.$projection();
+            const projection = this.context.projection();
             let radius = coordinateDistance(
               fromUserCoordinate(geometry.getCenter(), projection),
               fromUserCoordinate(vertex, projection)
@@ -918,8 +906,6 @@ class Modify extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleDownEvent(evt) {
-    this.$map(evt.map)
-
     if (!this.condition_(evt)) {
       return false;
     }
@@ -1041,8 +1027,6 @@ class Modify extends PointerInteraction {
    * @return {boolean} If the event was consumed.
    */
   handleUpEvent(evt) {
-    this.$map(evt.map)
-
     for (let i = this.dragSegments_.length - 1; i >= 0; --i) {
       const segmentData = this.dragSegments_[i][0];
       const geometry = segmentData.geometry;
@@ -1077,13 +1061,7 @@ class Modify extends PointerInteraction {
       }
     }
     if (this.featuresBeingModified_) {
-      this.dispatchEvent(
-        new ModifyEvent(
-          ModifyEventType.MODIFYEND,
-          this.featuresBeingModified_,
-          evt
-        )
-      );
+      this.modifyend_(this.featuresBeingModified_)
       this.featuresBeingModified_ = null;
     }
     return false;
@@ -1105,8 +1083,8 @@ class Modify extends PointerInteraction {
    * @private
    */
   handlePointerAtPixel_(pixel, coordinate) {
-    const pixelCoordinate = coordinate || this.$getCoordinateFromPixel()(pixel);
-    const projection = this.$projection();
+    const pixelCoordinate = coordinate || this.context.coordinateFromPixel(pixel);
+    const projection = this.context.projection();
     const sortByDistance = function (a, b) {
       return (
         projectedDistanceToSegmentDataSquared(pixelCoordinate, a, projection) -
@@ -1123,7 +1101,7 @@ class Modify extends PointerInteraction {
         typeof this.hitDetection_ === 'object'
           ? (layer) => layer === this.hitDetection_
           : undefined;
-      this.$forEachFeatureAtPixel()(
+      this.context.forEachFeatureAtPixel(
         pixel,
         (feature, layer, geometry) => {
           const geom = geometry || feature.getGeometry();
@@ -1154,7 +1132,7 @@ class Modify extends PointerInteraction {
         createExtent(pixelCoordinate, tempExtent),
         projection
       );
-      const buffer = this.$getResolution()() * this.pixelTolerance_;
+      const buffer = this.context.resolution() * this.pixelTolerance_;
       const box = toUserExtent(
         bufferExtent(viewExtent, buffer, tempExtent),
         projection
@@ -1166,7 +1144,7 @@ class Modify extends PointerInteraction {
       const node = nodes.sort(sortByDistance)[0];
       const closestSegment = node.segment;
       let vertex = closestOnSegmentData(pixelCoordinate, node, projection);
-      const vertexPixel = this.$getPixelFromCoordinate()(vertex);
+      const vertexPixel = this.context.pixelFromCoordinate(vertex);
       let dist = coordinateDistance(pixel, vertexPixel);
       if (hitPointGeometry || dist <= this.pixelTolerance_) {
         /** @type {Object<string, boolean>} */
@@ -1188,8 +1166,8 @@ class Modify extends PointerInteraction {
             [node.geometry]
           );
         } else {
-          const pixel1 = this.$getPixelFromCoordinate()(closestSegment[0]);
-          const pixel2 = this.$getPixelFromCoordinate()(closestSegment[1]);
+          const pixel1 = this.context.pixelFromCoordinate(closestSegment[0]);
+          const pixel2 = this.context.pixelFromCoordinate(closestSegment[1]);
           const squaredDist1 = squaredCoordinateDistance(vertexPixel, pixel1);
           const squaredDist2 = squaredCoordinateDistance(vertexPixel, pixel2);
           dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
@@ -1319,13 +1297,7 @@ class Modify extends PointerInteraction {
       this.willModifyFeatures_(evt, this.dragSegments_);
       const removed = this.removeVertex_();
       if (this.featuresBeingModified_) {
-        this.dispatchEvent(
-          new ModifyEvent(
-            ModifyEventType.MODIFYEND,
-            this.featuresBeingModified_,
-            evt
-          )
-        );
+        this.modifyend_(this.featuresBeingModified_)
       }
 
       this.featuresBeingModified_ = null;
