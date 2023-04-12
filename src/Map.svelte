@@ -4,7 +4,7 @@
   import { OSM, Vector as VectorSource } from './ol/source'
   import { Tile as TileLayer, Vector as VectorLayer } from './ol/layer'
   import { Kinetic } from './ol'
-  import { Draw, Modify, DoubleClickZoom, DragPan, KeyboardZoom, MouseWheelZoom } from './ol/interaction'
+  import * as Interaction from './ol/interaction'
   import GeoJSON from './ol/format/GeoJSON'
 
   const geoJSON = new GeoJSON()
@@ -41,33 +41,33 @@
     const options = { onFocusOnly: true}
     const kinetic = new Kinetic(-0.005, 0.05, 100);
 
-    const doubleClickZoom = () => new DoubleClickZoom({
+    const doubleClickZoom = () => new Interaction.DoubleClickZoom({
       delta: options.zoomDelta,
       duration: options.zoomDuration,
     })
 
-    const dragPan = () => new DragPan({
+    const dragPan = () => new Interaction.DragPan({
       onFocusOnly: options.onFocusOnly,
       kinetic: kinetic,
     })
 
-    const keyboardZoom = () => new KeyboardZoom({
+    const keyboardZoom = () => new Interaction.KeyboardZoom({
       delta: options.zoomDelta,
       duration: options.zoomDuration,
     })
 
-    const mouseWheelZoom = () => new MouseWheelZoom({
+    const mouseWheelZoom = () => new Interaction.MouseWheelZoom({
       onFocusOnly: options.onFocusOnly,
       duration: options.zoomDuration,
     })
  
-    const modify = () => new Modify({ 
+    const modify = () => new Interaction.Modify({ 
       source: vectorSource,
       modifystart: features => console.log('[modifystart]', features),
       modifyend: features => console.log('[modifyend]', features)
     })
 
-    const draw = () => new Draw({ 
+    const draw = () => new Interaction.Draw({ 
       source: vectorSource, 
       type: 'Polygon',
       drawstart: feature => console.log('[drawstart]', feature),
@@ -76,14 +76,11 @@
     })
 
     const xinteractions = [
-      // event => { console.log(['xinteraction/1'], event); return event },
-      // event => { console.log(['xinteraction/2'], event); return event },
-      // event => { console.log(['xinteraction/3'], event); return event },
-      wrap(doubleClickZoom()),
-      wrap(dragPan()),
-      wrap(keyboardZoom()),
-      wrap(mouseWheelZoom()),
-      wrap(draw()),
+      // wrap(doubleClickZoom()),
+      // wrap(dragPan()),
+      // wrap(keyboardZoom()),
+      // wrap(mouseWheelZoom()),
+      // wrap(draw()),
       wrap(modify())
     ]
 
@@ -92,7 +89,7 @@
       layers: [tileLayer, vectorLayer],
       view,
       xinteractions,
-      interactions: [],
+      interactions: [new Interaction.Extent()],
       controls: []
     })
 
