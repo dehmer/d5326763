@@ -1,0 +1,15 @@
+dispatch({
+  handle: event => console.log('handle', event),
+  unhandled: event => console.log('unhandled', event),
+  keydown: event => console.log('keydown', event),
+  keyup: event => console.log('keyup', event),
+  keypress: event => console.log('keypress', event),
+  pointerdown: event => console.log('pointerdown', event),
+  click: event => console.log('click', event),
+  singleclick: event => console.log('singleclick', event),
+  dblclick: event => console.log('dblclick', event),
+  pointerup: event => console.log('pointerup', event),
+  pointermove: event => console.log('pointermove', event),
+  pointerdrag: event => console.log('pointerdrag', event),
+  dispose: () => console.log('dispose')
+})
