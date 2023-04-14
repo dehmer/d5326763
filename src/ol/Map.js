@@ -1222,6 +1222,12 @@ class Map extends BaseObject {
         ),
         listen(
           keyboardEventTarget,
+          EventType.KEYUP,
+          this.handleBrowserEvent,
+          this
+        ),
+        listen(
+          keyboardEventTarget,
           EventType.KEYPRESS,
           this.handleBrowserEvent,
           this

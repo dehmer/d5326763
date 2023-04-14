@@ -21,26 +21,6 @@ import {fromExtent as polygonFromExtent} from '../geom/Polygon.js';
 import {toUserExtent} from '../proj.js';
 
 /**
- * @typedef {Object} Options
- * @property {import("../events/condition.js").Condition} [condition] A function that
- * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
- * boolean to indicate whether that event should be handled.
- * Default is {@link module:ol/events/condition.always}.
- * @property {import("../extent.js").Extent} [extent] Initial extent. Defaults to no
- * initial extent.
- * @property {import("../style/Style.js").StyleLike} [boxStyle]
- * Style for the drawn extent box. Defaults to the `Polygon` editing style
- * documented in {@link module:ol/style/Style~Style}
- * @property {number} [pixelTolerance=10] Pixel tolerance for considering the
- * pointer close enough to a segment or vertex for editing.
- * @property {import("../style/Style.js").StyleLike} [pointerStyle]
- * Style for the cursor used to draw the extent. Defaults to the `Point` editing style
- * documented in {@link module:ol/style/Style~Style}
- * @property {boolean} [wrapX=false] Wrap the drawn extent across multiple maps
- * in the X direction? Only affects visuals, not functionality.
- */
-
-/**
  * @enum {string}
  */
 const ExtentEventType = {
@@ -73,16 +53,6 @@ export class ExtentEvent extends Event {
   }
 }
 
-/***
- * @template Return
- * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
- *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
- *     'change:active', import("../Object").ObjectEvent, Return> &
- *   import("../Observable").OnSignature<'extentchanged', ExtentEvent, Return> &
- *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
- *     'change:active'|'extentchanged', Return>} ExtentOnSignature
- */
-
 class Extent extends PointerInteraction {
   /**
    * @param {Options} [options] Options.
@@ -90,22 +60,7 @@ class Extent extends PointerInteraction {
   constructor(options) {
     options = options || {};
 
-    super(/** @type {import("./Pointer.js").Options} */ (options));
-
-    /***
-     * @type {ExtentOnSignature<import("../events").EventsKey>}
-     */
-    this.on;
-
-    /***
-     * @type {ExtentOnSignature<import("../events").EventsKey>}
-     */
-    this.once;
-
-    /***
-     * @type {ExtentOnSignature<void>}
-     */
-    this.un;
+    super(options);
 
     /**
      * Condition
@@ -242,6 +197,7 @@ class Extent extends PointerInteraction {
    * @private
    */
   handlePointerMove_(mapBrowserEvent) {
+    // console.log('[Extent/handlePointerMove_]', mapBrowserEvent)
     const pixel = mapBrowserEvent.pixel;
     const map = mapBrowserEvent.map;
 
@@ -258,6 +214,7 @@ class Extent extends PointerInteraction {
    * @private
    */
   createOrUpdateExtentFeature_(extent) {
+    console.log('createOrUpdateExtentFeature_', extent)
     let extentFeature = this.extentFeature_;
 
     if (!extentFeature) {
@@ -301,6 +258,7 @@ class Extent extends PointerInteraction {
    * @return {boolean} `false` to stop event propagation.
    */
   handleEvent(mapBrowserEvent) {
+    // console.log('[Extent/handleEvent]', mapBrowserEvent)
     if (!mapBrowserEvent.originalEvent || !this.condition_(mapBrowserEvent)) {
       return true;
     }

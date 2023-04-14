@@ -5,6 +5,7 @@
   import { Tile as TileLayer, Vector as VectorLayer } from './ol/layer'
   import { Kinetic } from './ol'
   import * as Interaction from './ol/interaction'
+  import Extent from './ol/interaction/Extent_'
   import GeoJSON from './ol/format/GeoJSON'
 
   const geoJSON = new GeoJSON()
@@ -81,7 +82,10 @@
       // wrap(keyboardZoom()),
       // wrap(mouseWheelZoom()),
       // wrap(draw()),
-      wrap(modify())
+      // wrap(modify()),
+      Extent({
+        extentchanged: extent => console.log('extentchanged', extent)
+      })
     ]
 
     let map = new ol.Map({
@@ -89,11 +93,12 @@
       layers: [tileLayer, vectorLayer],
       view,
       xinteractions,
-      interactions: [new Interaction.Extent()],
+      interactions: [],
+      // interactions: [new Interaction.Extent()],
       controls: []
     })
 
-    // setTimeout(() => map.removeXInteraction(xinteractions[3]), 5000)
+    // setTimeout(() => map.removeXInteraction(xinteractions[0]), 5000)
 
     const destroy = () => {
       if (map) {

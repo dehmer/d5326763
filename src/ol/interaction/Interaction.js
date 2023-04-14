@@ -172,6 +172,11 @@ export const context = (options = {}) => {
   let map
   let view
 
+  if (options.map) {
+    map = options.map
+    view = map.getView()
+  }
+
   const dispose = options.dispose || (() => {})
   const initialize = options.initialize || (() => {})
 
