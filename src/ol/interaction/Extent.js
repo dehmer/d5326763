@@ -214,7 +214,6 @@ class Extent extends PointerInteraction {
    * @private
    */
   createOrUpdateExtentFeature_(extent) {
-    console.log('createOrUpdateExtentFeature_', extent)
     let extentFeature = this.extentFeature_;
 
     if (!extentFeature) {

@@ -190,6 +190,7 @@ export const context = (options = {}) => {
   // Interaction-private map/view interface. 
   
   return {
+    map,
     setMap,
     initialized: () => !!map,    
     rendered: () => map.isRendered(),

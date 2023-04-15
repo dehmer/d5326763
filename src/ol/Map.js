@@ -376,7 +376,6 @@ class Map extends BaseObject {
         onFocusOnly: true,
       });
 
-    this.xinteractions = R.reverse(options.xinteractions || [])
 
     /**
      * @type {Collection<import("./Overlay.js").default>}
@@ -480,6 +479,15 @@ class Map extends BaseObject {
       })
 
     this.overlays_.forEach(this.addOverlayInternal_.bind(this));
+
+
+    this.xinteractions = 
+      R
+        .reverse(options.xinteractions || [])
+        .map(x => x(this))
+
+    console.log(this.xinteractions)
+
   }
 
   /**
