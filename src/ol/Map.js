@@ -480,14 +480,10 @@ class Map extends BaseObject {
 
     this.overlays_.forEach(this.addOverlayInternal_.bind(this));
 
-
     this.xinteractions = 
       R
         .reverse(options.xinteractions || [])
         .map(x => x(this))
-
-    console.log(this.xinteractions)
-
   }
 
   /**
