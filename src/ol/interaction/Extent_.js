@@ -99,6 +99,7 @@ const drawExtent = ctx => ({ startCoordinate }) => ({
     // Note: `event.coordinate` is equivalent to
     // `map.getCoordinateFromPixelInternal(event.pixel)`
     ctx.vertex(event.coordinate)
+    // TODO: use handler function
     const extent = boundingExtent([startCoordinate, event.coordinate])
     ctx.extent(extent)
     return [event]
@@ -110,77 +111,101 @@ const drawExtent = ctx => ({ startCoordinate }) => ({
   }
 })
 
+const pointHandler = a => x => boundingExtent([a, x])
+
+const edgeHandler = (a, b) => {
+  if (a[0] === b[0]) return x => boundingExtent([a, [x[0], b[1]]])
+  else if (a[1] === b[1]) return x => boundingExtent([a, [b[0], x[1]]])
+  else return () => null
+}
+
 const modifyExtent = ctx => () => ({
   pointermove: event => {
     ctx.event(event)
-    const coordinate = ctx.snappedCoordinate() || event.coordinate
-    ctx.vertex(coordinate)
+    ctx.vertex(ctx.snappedVertex() || event.coordinate)
     return [event]
   },
   pointerdown: event => {
     ctx.event(event)
-    console.log('snappedCoordinate', ctx.snappedCoordinate())
-    console.log('oppositeVertex', ctx.oppositeVertex())
+
+    if (ctx.extent() && ctx.snappedVertex()) {
+      const extent = ctx.extent()
+      const vertex = ctx.snappedVertex()
+      const x = vertex[0] == extent[0] || vertex[0] == extent[2] ? vertex[0] : null
+      const y = vertex[1] == extent[1] || vertex[1] == extent[3] ? vertex[1] : null
+
+      if (x !== null && y !== null) {
+        ctx.handler(pointHandler(Extent.oppositeVertex(extent, vertex)))
+      } else if (x !== null) {
+        ctx.handler(edgeHandler(
+          Extent.oppositeVertex(extent, [x, extent[1]]),
+          Extent.oppositeVertex(extent, [x, extent[3]])
+        ))
+      } else if (y !== null) {
+        ctx.handler(edgeHandler(
+          Extent.oppositeVertex(extent, [extent[0], y]),
+          Extent.oppositeVertex(extent, [extent[2], y])
+        ))
+      }
+    } else {
+      ctx.extent(null)
+      ctx.handler(pointHandler(event.coordinate))
+    }
+
     // TODO: ...
+    return [event]
+  },
+
+  pointerdrag: event => {
+    ctx.extent(ctx.handler()(event.coordinate))
     return [event]
   }
 })
 
-export default options => map => {
-  const opts = options || {}
-  opts.pixelTolerance = opts.pixelTolerance === undefined ? 10 : opts.pixelTolerance
-  opts.condition = opts.condition || always
-
-  const ctx = context({ map })
-  ctx.idle = idle(ctx, opts)
-  ctx.drawExtent = drawExtent(ctx, opts)
-  ctx.modifyExtent = modifyExtent(ctx, opts)
-
-  ctx.extent = flyd.stream()
-  ctx.vertex = flyd.stream()
-  ctx.event = flyd.stream()
-
-  const segments = flyd.combine($extent => {
-    if (!$extent()) return null
-    const [x1, y1, x2, y2] = $extent()
-    return [
-      [[x1, y1], [x1, y2]],
-      [[x1, y2], [x2, y2]],
-      [[x2, y2], [x2, y1]],
-      [[x2, y1], [x1, y1]]
-    ]
-  }, [ctx.extent])
-
-  // TODO: can probably be local
-  ctx.oppositeVertex = flyd.combine(($extent, $vertex) => {
-    const [extent, vertex] = [$extent(), $vertex()]
-    return extent && vertex
-      ? opposingPoint(extent, vertex)
-      : null
-  }, [ctx.extent, ctx.vertex])
-    
-  const polygon = flyd.combine($extent => {
-    return $extent() ? polygonFromExtent($extent()) : null
-  }, [ctx.extent])
-
-  ctx.area = flyd.combine($polygon => {
-    return $polygon() ? $polygon().getArea() : 0
-  }, [polygon])
-
-  const byDistance = coordinate => (a, b) => 
+const compareDistance = coordinate => 
+  (a, b) => 
     squaredDistanceToSegment(coordinate, a) -
     squaredDistanceToSegment(coordinate, b)
 
-  // TODO: extract function
-  ctx.snappedCoordinate = flyd.combine(($event, $segments) => {
-    if (!$event()) return null
-    if (!$segments()) return null
+const Extent = {
+  polygon: extent => extent ? polygonFromExtent(extent) : null,
+  area: polygon => polygon ? polygon.getArea() : 0,
+
+  segments: extent => 
+    extent
+      ? [
+          [[extent[0], extent[1]], [extent[0], extent[3]]],
+          [[extent[0], extent[3]], [extent[2], extent[3]]],
+          [[extent[2], extent[3]], [extent[2], extent[1]]],
+          [[extent[2], extent[1]], [extent[0], extent[1]]]
+        ]
+      : null,
+
+  oppositeVertex: (extent, vertex) => {
+    if (!extent || !vertex) return null
+
+    const x = vertex[0] == extent[0]
+      ? extent[2]
+      : vertex[0] == extent[2]
+        ? extent[0]
+        : null
+  
+    const y = vertex[1] == extent[1]
+      ? extent[3]
+      : vertex[1] == extent[3]
+        ? extent[1]
+        : null
+  
+    return x !== null && y !== null ? [x, y] : null
+  },
+
+  snap: (ctx, options) => (event, segments) => {
+    if (!event || !segments) return null
 
     // Convert extents to line segments and 
     // find the segment closest to pixelCoordinate.
-    const { coordinate, pixel } = $event() // FIXME: coordinate/pixel are redundant
-    const segments = R.sort(byDistance(coordinate), $segments())
-    const closestSegment = segments[0]  
+    const { coordinate, pixel } = event // FIXME: coordinate/pixel are redundant
+    const closestSegment = R.sort(compareDistance(coordinate), segments)[0]  
     const vertex = closestOnSegment(coordinate, closestSegment)
     const vertexPixel = ctx.pixelFromCoordinateInternal(vertex)
   
@@ -199,6 +224,36 @@ export default options => map => {
         ? closestSegment[1] 
         : closestSegment[0]
       : vertex
+  }
+}
+
+export default options => map => {
+  const opts = options || {}
+  opts.pixelTolerance = opts.pixelTolerance === undefined ? 10 : opts.pixelTolerance
+  opts.condition = opts.condition || always
+
+  const ctx = context({ map })
+  ctx.idle = idle(ctx, opts)
+  ctx.drawExtent = drawExtent(ctx, opts)
+  ctx.modifyExtent = modifyExtent(ctx, opts)
+
+  ctx.extent = flyd.stream()
+  ctx.vertex = flyd.stream()
+  ctx.event = flyd.stream()
+  ctx.handler = flyd.stream()
+
+  const snap = Extent.snap(ctx, opts)
+  const segments = ctx.extent.map(Extent.segments) // A.K.A flyd.map(fn, s)
+  const polygon = ctx.extent.map(Extent.polygon)
+  ctx.area = polygon.map(Extent.area)
+
+  // TODO: can probably be local
+  ctx.oppositeVertex = flyd.combine(($extent, $vertex) => {
+    return Extent.oppositeVertex($extent(), $vertex())
+  }, [ctx.extent, ctx.vertex])
+    
+  ctx.snappedVertex = flyd.combine(($event, $segments) => {
+    return snap($event(), $segments())
   }, [ctx.event, segments])
 
   // TODO: dispose
@@ -206,24 +261,8 @@ export default options => map => {
   const vertexOverlay_ = vertexOverlay(ctx, opts)
 
   // Side-effects: vertex/extent overlay
-  flyd.combine($vertex => vertexOverlay_.update($vertex()), [ctx.vertex])
-  flyd.combine($polygon => extentOverlay_.update($polygon()), [polygon])
+  flyd.on(vertexOverlay_.update, ctx.vertex)
+  flyd.on(extentOverlay_.update, polygon)
 
-  return R.compose(fsm(ctx.idle(opts)))
-}
-
-const opposingPoint = (extent, vertex) => {
-  const x = vertex[0] == extent[0]
-    ? extent[2]
-    : vertex[0] == extent[2]
-      ? extent[0]
-      : null
-
-  const y = vertex[1] == extent[1]
-    ? extent[3]
-    : vertex[1] == extent[3]
-      ? extent[1]
-      : null
-
-  return x !== null && y !== null ? [x, y] : null
+  return fsm(ctx.idle(opts))
 }
