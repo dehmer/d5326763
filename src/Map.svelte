@@ -5,7 +5,8 @@
   import { Tile as TileLayer, Vector as VectorLayer } from './ol/layer'
   import { Kinetic } from './ol'
   import * as Interaction from './ol/interaction'
-  import Extent from './ol/interaction/Extent_'
+  // import Extent from './ol/interaction/Extent.b9b8'
+  import Extent from './ol/interaction/Extent.ae74'
   import GeoJSON from './ol/format/GeoJSON'
 
   const geoJSON = new GeoJSON()

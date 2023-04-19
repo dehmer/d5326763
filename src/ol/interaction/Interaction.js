@@ -168,36 +168,19 @@ export function zoomByDelta(context, delta, anchor, duration) {
   });
 }
 
-export const context = (options = {}) => {
-  let map
-  let view
-
-  if (options.map) {
-    map = options.map
-    view = map.getView()
-  }
-
-  const dispose = options.dispose || (() => {})
-  const initialize = options.initialize || (() => {})
-
-  const setMap = aMap => {
-    if (map && !aMap) dispose()
-    else if (!map && aMap) initialize(aMap)
-    map = aMap
-    view = map ? map.getView() : null
-  }
+export const context = map => {
+  const view = map.getView()
 
   // Interaction-private map/view interface. 
   
   return {
-    map,
-    setMap,
-    initialized: () => !!map,    
     rendered: () => map.isRendered(),
     coordinateFromPixel: pixel => map.getCoordinateFromPixel(pixel),
     coordinateFromPixelInternal: pixel => map.getCoordinateFromPixelInternal(pixel),
     pixelFromCoordinate: coordinate => map.getPixelFromCoordinate(coordinate),
     pixelFromCoordinateInternal: coordinate => map.getPixelFromCoordinateInternal(coordinate),
+
+    // FIXME: misleading name: `getEventPixel`, see DragPan interaction (centroid)
     eventPixel: event => map.getEventPixel(event),
     forEachFeatureAtPixel: (pixel, callback, options) => map.forEachFeatureAtPixel(pixel, callback, options),
     interacting: () => view.getInteracting(),
