@@ -36,9 +36,7 @@ export const vertexOverlay = (map, options) => {
   const layer = overlay(map, options, style)
   const feature = new Feature()
   layer.getSource().addFeature(feature)
-  const update = coordinates => coordinates 
-    ? feature.setGeometry(new Point(coordinates))
-    : feature.setGeometry(null)
+  const update = point => feature.setGeometry(point)
 
   const dispose = () => {
     layer.getSource().clear()
@@ -129,7 +127,9 @@ export const segments = extent =>
 /**
  * 
  */
+export const point = coordinate => coordinate ? new Point(coordinate) : null
 export const polygon = extent => extent ? polygonFromExtent(extent) : null
+export const area = polygon => polygon ? polygon.getArea() : 0
 
 /**
  * 
@@ -169,6 +169,34 @@ export const snap = (event, segments) => {
     : vertex
 }
 
+export const snap2 = segments => {
+  if (!segments) return R.always(null)
+  else return event => {
+    // Convert extents to line segments and 
+    // find the segment closest to pixelCoordinate.
+    const { coordinate, pixel } = event // FIXME: coordinate/pixel are redundant
+    const closestSegment = R.sort(compareDistance(coordinate), segments)[0]  
+    const vertex = closestOnSegment(coordinate, closestSegment)
+    const vertexPixel = event.pixelFromCoordinateInternal(vertex)
+
+    if (coordinateDistance(pixel, vertexPixel) > event.pixelTolerance) {
+      return null
+    }
+
+    // If the distance is within tolerance, snap to the segment.
+    const pixel1 = event.pixelFromCoordinateInternal(closestSegment[0])
+    const pixel2 = event.pixelFromCoordinateInternal(closestSegment[1])
+    const squaredDist1 = squaredCoordinateDistance(vertexPixel, pixel1)
+    const squaredDist2 = squaredCoordinateDistance(vertexPixel, pixel2)
+    const dist = Math.sqrt(Math.min(squaredDist1, squaredDist2))
+    return dist <= event.pixelTolerance
+      ? squaredDist1 > squaredDist2 
+        ? closestSegment[1] 
+        : closestSegment[0]
+      : vertex
+  }
+}
+
 /**
  * 
  */
@@ -191,12 +219,15 @@ export const oppositeVertex = (extent, vertex) => {
 }
 
 export const Event = {
-  of: options => event => ({
-    type: event.type,
-    pixel: event.pixel,
-    coordinate: event.coordinate,
-    pixelTolerance: options.pixelTolerance === undefined ? 10 : options.pixelTolerance,
-    condition: options.condition || always,
-    ...context(event.map)
-  })
+  of: (map, options) => {
+    const ctx = context(map)
+    return event => ({
+      type: event.type,
+      pixel: event.pixel,
+      coordinate: event.coordinate,
+      pixelTolerance: options.pixelTolerance === undefined ? 10 : options.pixelTolerance,
+      condition: options.condition || always,
+      ...ctx
+    })
+  }
 }

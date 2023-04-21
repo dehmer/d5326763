@@ -6,7 +6,9 @@
   import { Kinetic } from './ol'
   import * as Interaction from './ol/interaction'
   // import Extent from './ol/interaction/Extent.b9b8'
-  import Extent from './ol/interaction/Extent.ae74'
+  // import Extent from './ol/interaction/Extent.ae74'
+  // import Extent from './ol/interaction/Extent.428d'
+  import Extent from './ol/interaction/Extent.b60e'
   import GeoJSON from './ol/format/GeoJSON'
 
   const geoJSON = new GeoJSON()

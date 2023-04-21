@@ -3,7 +3,7 @@ import * as F1 from 'flyd'
 import { always } from '../events/condition.js'
 import { extentOverlay, vertexOverlay } from './Extent.fns.js'
 import { dispatch } from './flyd.js'
-import { segments, polygon, dragHandler, snap } from './Extent.fns.js'
+import { segments, polygon, area, dragHandler, snap } from './Extent.fns.js'
 import { Event } from './Extent.fns.js'
 import * as F2 from './flyd.js'
 
@@ -14,6 +14,9 @@ const Overlay = {
   vertex: vertexOverlay
 }
 
+const dragmove = event => event.type === 'pointermove' && event.dragging
+const coordinate = R.ifElse(R.isNil, R.always(null), R.prop('coordinate'))
+
 export default (options = {}) => map => {
   options = {
     pixelTolerance: options.pixelTolerance === undefined ? 10 : options.pixelTolerance,
@@ -23,18 +26,19 @@ export default (options = {}) => map => {
   const extentOverlay = Overlay.extent(map, options)
   const vertexOverlay = Overlay.vertex(map, options)
 
-  const dragmove = event => event.type === 'pointermove' && event.dragging
   const $input = flyd.stream()
   const $event = R.compose(
-    flyd.map(Event.of(options)),
+    flyd.map(Event.of(map, options)),
     flyd.filter(R.compose(R.not, dragmove))
   )($input)
 
   const $pointermove = flyd.stream()
-  const $pointerdrag = flyd.stream() // OL still dispatches pointermove :-O
-  const $pointerdown = flyd.stream()
-  const $pointerup = flyd.stream()
-  const $completedExtent = flyd.stream(null) // when drawn
+  const $pointerdrag = flyd.stream()
+  const $pointerdown = flyd.stream(null)
+  const $pointerup = flyd.stream(null)
+  const $moveCoordinate = flyd.map(coordinate, $pointermove)
+  const $dragCoordinate = flyd.map(coordinate, $pointerdrag)
+  const $coordinate = flyd.merge($moveCoordinate, $dragCoordinate)
 
   dispatch(event => ({
     pointermove: $pointermove,
@@ -43,41 +47,63 @@ export default (options = {}) => map => {
     pointerup: $pointerup
   }[event?.type]), $event)
 
-  const $moveCoordinate = $pointermove.map(R.prop('coordinate'))
-  const $dragCoordinate = $pointerdrag.map(R.prop('coordinate'))
-  const $segments = $completedExtent.map(segments)
-
-  const $snappedCoordinate = flyd.combine(($event, $segments) => {
-    return snap($event(), $segments())
-  }, [$pointermove, $segments])
-
-  const $handler = flyd.combine(($extent, $vertex, $event) => {
-    return dragHandler({
-      extent: $extent(),
-      vertex: $vertex(),
-      coordinate: $event().coordinate
-    })
-  }, [$completedExtent, $snappedCoordinate, $pointerdown])
-
-  // ap :: s[v] -> s[fn] -> s[fn(v)]
-  const $interimExtent = flyd.ap($dragCoordinate, $handler) 
-
-  // FIXME: nasty side-effect
-  flyd.on(() => {
-    $completedExtent($interimExtent())
-  }, $pointerup)
-
-  const $extent = flyd.merge($interimExtent, $completedExtent)
-  const $polygon = $extent.map(polygon)
-
-  // Merge move/drag coordinate with optional snapped coordinate.
-  // Snapped coordinate if defined has precedence.
-  const $coordinate = flyd.combine(($coordinate, $snappedCoordinate) => {
-    return $snappedCoordinate() || $coordinate()
-  }, [flyd.merge($moveCoordinate, $dragCoordinate), $snappedCoordinate])
+  const $dragging = flyd.combine(($down, $up, self, changed) => {
+    if (self() === undefined) return false
+    else return changed.length && changed[0] === $down
+  }, [$pointerdown, $pointerup])
 
   flyd.on(vertexOverlay.update, $coordinate)
-  flyd.on(extentOverlay.update, $polygon)
 
   return $input
+
+  // const $completedExtent = flyd.stream()
+  // const $segments = $completedExtent.map(segments)
+  // const $moveCoordinate = $pointermove.map(coordinate)
+  // const $dragCoordinate = $pointerdrag.map(coordinate)
+
+
+  // const $snappedCoordinate = flyd.combine(($event, $segments, $dragging) => {
+  //   if ($dragging()) return null
+  //   return snap($event(), $segments())
+  // }, [$pointermove, $segments, $dragging])
+
+  // flyd.on(x => console.log(x), $snappedCoordinate)
+
+  // // Merge move/drag coordinate with optional snapped coordinate.
+  // // Snapped coordinate if defined has precedence.
+  // const $coordinate = flyd.combine(($coordinate, $snapped) => {
+  //   // console.log('dragging', $dragging())
+  //   return $snapped() || $coordinate()
+  // }, [flyd.merge($moveCoordinate, $dragCoordinate), $snappedCoordinate])
+
+
+  // const $handler = flyd.combine(($extent, $vertex, $dragging, $coordinate) => {
+  //   if (!$dragging()) return undefined
+
+  //   return dragHandler({
+  //     extent: $extent(),
+  //     vertex: $vertex(),
+  //     coordinate: $coordinate()
+  //   })
+  // }, [$completedExtent, $snappedCoordinate, $dragging, $moveCoordinate])
+
+  // // ap :: s[v] -> s[fn] -> s[fn(v)]
+  // const $interimExtent = flyd.ap($dragCoordinate, $handler) 
+  // const $area = R.compose(
+  //   flyd.map(area),
+  //   flyd.map(polygon)
+  // )($interimExtent)
+
+  // // FIXME: nasty side-effect
+  // flyd.on(() => {
+  //   console.log('interimExtent', $interimExtent())
+  //   $completedExtent($interimExtent())
+  // }, $pointerup)
+
+  // const $extent = flyd.merge($interimExtent, $completedExtent)
+  // const $polygon = flyd.map(polygon, $extent)
+
+
+  // flyd.on(extentOverlay.update, $polygon)
+
 }
