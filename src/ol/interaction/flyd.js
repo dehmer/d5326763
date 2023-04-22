@@ -1,3 +1,4 @@
+import * as R from 'ramda'
 import * as flyd from 'flyd'
 
 // Only update value of combined stream if single dependency value changed.
@@ -25,12 +26,12 @@ export const forward = flyd.curryN(2, function(args, fn) {
 /**
  * 
  */
-export const dispatch = (fn, source) => {
-    return flyd.combine(s => {
-      const target = fn(s.val)
-      if (target) target(s.val)
-    }, [source])
-  }
+export const dispatch = R.curry((fn, source) => {
+  return flyd.combine(s => {
+    const target = fn(s.val)
+    if (target) target(s.val)
+  }, [source])
+})
   
 /**
  * 
@@ -39,4 +40,16 @@ export const filter = flyd.curryN(2, function(fn, s) {
   return flyd.combine(function(s, self) {
     if (fn(s())) self(s.val)
   }, [s])
+})
+
+/**
+ * 
+ */
+export const loop = R.curry((fn, initial, $s) => {
+  let acc = initial
+  return flyd.combine($s => {
+    const [next, val] = fn(acc, $s.val)
+    acc = next
+    return val
+  }, [$s])
 })

@@ -14,7 +14,6 @@ const Overlay = {
   vertex: vertexOverlay
 }
 
-const dragmove = event => event.type === 'pointermove' && event.dragging
 const coordinate = R.ifElse(R.isNil, R.always(null), R.prop('coordinate'))
 
 export default (options = {}) => map => {
@@ -27,44 +26,64 @@ export default (options = {}) => map => {
   const vertexOverlay = Overlay.vertex(map, options)
 
   const $input = flyd.stream()
+
+  // What you see ain't what you get.
+  // 1. OL emits move AND drag events while dragging
+  // 2. drag events are only emitted after mouse moved a certain distance
   const $event = R.compose(
     flyd.map(Event.of(map, options)),
-    flyd.filter(R.compose(R.not, dragmove))
+    flyd.filter(x => x.type !== 'pointerdrag')
   )($input)
 
   const $pointermove = flyd.stream()
-  const $pointerdrag = flyd.stream()
-  const $pointerdown = flyd.stream(null)
-  const $pointerup = flyd.stream(null)
+  const $pointerdown = flyd.stream()
+  const $pointerup = flyd.stream()
   const $extent = flyd.stream(null)
-  const $moveCoordinate = flyd.map(coordinate, $pointermove)
-  const $dragCoordinate = flyd.map(coordinate, $pointerdrag)
-  const $coordinate = flyd.merge($moveCoordinate, $dragCoordinate)
-  const $point = flyd.map(point, $coordinate)
+  const $coordinate = flyd.map(coordinate, $pointermove)
   const $segments = flyd.map(segments, $extent)
-  const $polygon = flyd.map(polygon, $extent)
   const $snap = flyd.map(snap2, $segments)
   const $snapped = flyd.ap($pointermove, $snap)
 
   dispatch(event => ({
     pointermove: $pointermove,
-    pointerdrag: $pointerdrag,
     pointerdown: $pointerdown,
     pointerup: $pointerup
   }[event?.type]), $event)
 
-  const $handler = flyd.combine(($down, $up, self, changed) => {
+  const $dragging = R.compose(
+    flyd.immediate
+  )(flyd.combine(($down, $up, self, changed) => {
     return changed.includes($down)
-      ? dragHandler({
-          extent: $extent(),
-          vertex: $snapped(),
-          coordinate: $coordinate()
-        })
-      : null
-  }, [$pointerdown, $pointerup])
+  }, [$pointerdown, $pointerup]))
+  
+  const $handler = flyd.map(dragging => 
+    dragging
+      ? dragHandler({ extent: $extent(), vertex: $snapped(), coordinate: $coordinate() })
+      : R.always(null)
+    , $dragging)
 
-  flyd.on(console.log, $handler)
+  const $sketch = flyd.combine(($dragging, $handler, $coordinate) => {
+    return $dragging() 
+      ? $handler()($coordinate())
+      : undefined
+  }, [$dragging, $handler, $coordinate])
+
+  const $polygon = flyd.map(polygon, $sketch)
+
+  const $point = flyd.combine(($dragging, $coordinate, $snapped) => {
+    const coordinate = $dragging()
+      ? $coordinate()
+      : $snapped() || $coordinate()
+    return point(coordinate)
+  }, [$dragging, $coordinate, $snapped])
+
+  flyd.on(() => {
+    const sketch = $sketch()
+    $extent(area(polygon(sketch)) ? sketch : null)
+  }, $pointerup)
+
   flyd.on(vertexOverlay.update, $point)
+  flyd.on(extentOverlay.update, $polygon)
 
   return $input
 }

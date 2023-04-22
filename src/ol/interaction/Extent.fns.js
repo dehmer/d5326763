@@ -221,12 +221,11 @@ export const oppositeVertex = (extent, vertex) => {
 export const Event = {
   of: (map, options) => {
     const ctx = context(map)
-    return event => ({
-      type: event.type,
-      pixel: event.pixel,
-      coordinate: event.coordinate,
-      pixelTolerance: options.pixelTolerance === undefined ? 10 : options.pixelTolerance,
-      condition: options.condition || always,
+    return ({ type, pixel, coordinate }) => ({
+      type,
+      pixel,
+      coordinate,
+      ...options,
       ...ctx
     })
   }
