@@ -1,5 +1,6 @@
-import flyd from 'flyd'
-import { skipRepeats } from './flyd'
+/**
+ * @module ol/interaction/DragZoom
+ */
 import DragBox from './DragBox.js';
 import {easeOut} from '../easing.js';
 import {shiftKeyOnly} from '../events/condition.js';
@@ -54,34 +55,26 @@ class DragZoom extends DragBox {
      * @type {boolean}
      */
     this.out_ = options.out !== undefined ? options.out : false;
-
-    this.$map = flyd.stream()
-    this.$mapNoRepeats = flyd.combine(skipRepeats(), [this.$map])
-    this.$view = flyd.combine($map => $map().getView(), [this.$mapNoRepeats])
-    this.$rotatedExtentForGeometry = flyd.combine($view => $view().rotatedExtentForGeometry.bind($view()), [this.$view])
-    this.$getResolutionForExtentInternal = flyd.combine($view => $view().getResolutionForExtentInternal.bind($view()), [this.$view])
-    this.$getResolution = flyd.combine($view => $view().getResolution.bind($view()), [this.$view])
-    this.$fitInternal = flyd.combine($view => $view().fitInternal.bind($view()), [this.$view])
   }
 
   /**
    * Function to execute just before `onboxend` is fired
-   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
+   * @param {import("../MapBrowserEvent.js").default} event Event.
    */
-  onBoxEnd(mapBrowserEvent) {
-    this.$map(mapBrowserEvent.map)
-
+  onBoxEnd(event) {
+    const map = this.getMap();
+    const view = /** @type {!import("../View.js").default} */ (map.getView());
     let geometry = this.getGeometry();
 
     if (this.out_) {
-      const rotatedExtent = this.$rotatedExtentForGeometry()(geometry);
-      const resolution = this.$getResolutionForExtentInternal()(rotatedExtent);
-      const factor = this.$getResolution()() / resolution;
+      const rotatedExtent = view.rotatedExtentForGeometry(geometry);
+      const resolution = view.getResolutionForExtentInternal(rotatedExtent);
+      const factor = view.getResolution() / resolution;
       geometry = geometry.clone();
       geometry.scale(factor * factor);
     }
 
-    this.$fitInternal()(geometry, {
+    view.fitInternal(geometry, {
       duration: this.duration_,
       easing: easeOut,
     });

@@ -1,3 +1,6 @@
+/**
+ * @module ol/interaction/DragPan
+ */
 import PointerInteraction, {
   centroid as centroidFromPointers,
 } from './Pointer.js';
@@ -13,28 +16,32 @@ import {
   rotate as rotateCoordinate,
   scale as scaleCoordinate,
 } from '../coordinate.js';
-import { context } from './Interaction'
 
+/**
+ * @typedef {Object} Options
+ * @property {import("../events/condition.js").Condition} [condition] A function that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a boolean
+ * to indicate whether that event should be handled.
+ * Default is {@link module:ol/events/condition.noModifierKeys} and {@link module:ol/events/condition.primaryAction}.
+ * @property {boolean} [onFocusOnly=false] When the map's target has a `tabindex` attribute set,
+ * the interaction will only handle events when the map has the focus.
+ * @property {import("../Kinetic.js").default} [kinetic] Kinetic inertia to apply to the pan.
+ */
 
 /**
  * @classdesc
  * Allows the user to pan the map by dragging the map.
  * @api
  */
-class DragPan {
+class DragPan extends PointerInteraction {
   /**
    * @param {Options} [options] Options.
    */
   constructor(options) {
-    options = options ? options : {};
-
-    // Composition over inheritance:
-    this.pointer_ = new PointerInteraction({
+    super({
       stopDown: FALSE,
-      handleDownEvent: this.handleDownEvent.bind(this),
-      handleUpEvent: this.handleUpEvent.bind(this),
-      handleDragEvent: this.handleDragEvent.bind(this)
-    })
+    });
+
+    options = options ? options : {};
 
     /**
      * @private
@@ -74,15 +81,6 @@ class DragPan {
      * @type {boolean}
      */
     this.noKinetic_ = false;
-
-    this.context = context()
-  }
-
-  handleEvent(mapBrowserEvent) {
-    const map = mapBrowserEvent ? mapBrowserEvent.map : null
-    this.context.setMap(map)
-    if (!map) return false
-    return this.pointer_.handleEvent(mapBrowserEvent)
   }
 
   /**
@@ -90,27 +88,27 @@ class DragPan {
    * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
    */
   handleDragEvent(mapBrowserEvent) {
+    const map = mapBrowserEvent.map;
     if (!this.panning_) {
       this.panning_ = true;
-      this.context.beginInteraction();
+      map.getView().beginInteraction();
     }
-
-    const targetPointers = this.pointer_.targetPointers;
-    const centroid = this.context.eventPixel(centroidFromPointers(targetPointers));
+    const targetPointers = this.targetPointers;
+    const centroid = map.getEventPixel(centroidFromPointers(targetPointers));
     if (targetPointers.length == this.lastPointersCount_) {
       if (this.kinetic_) {
         this.kinetic_.update(centroid[0], centroid[1]);
       }
-
       if (this.lastCentroid) {
         const delta = [
           this.lastCentroid[0] - centroid[0],
           centroid[1] - this.lastCentroid[1],
         ];
-
-        scaleCoordinate(delta, this.context.resolution());
-        rotateCoordinate(delta, this.context.rotation());
-        this.context.adjustCenterInternal(delta);
+        const map = mapBrowserEvent.map;
+        const view = map.getView();
+        scaleCoordinate(delta, view.getResolution());
+        rotateCoordinate(delta, view.getRotation());
+        view.adjustCenterInternal(delta);
       }
     } else if (this.kinetic_) {
       // reset so we don't overestimate the kinetic energy after
@@ -128,37 +126,35 @@ class DragPan {
    * @return {boolean} If the event was consumed.
    */
   handleUpEvent(mapBrowserEvent) {
-    if (this.pointer_.targetPointers.length === 0) {
+    const map = mapBrowserEvent.map;
+    const view = map.getView();
+    if (this.targetPointers.length === 0) {
       if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
         const distance = this.kinetic_.getDistance();
         const angle = this.kinetic_.getAngle();
-        const center = this.context.centerInternal();
-        const centerpx = this.context.pixelFromCoordinateInternal(center);
-        const dest = this.context.coordinateFromPixelInternal([
+        const center = view.getCenterInternal();
+        const centerpx = map.getPixelFromCoordinateInternal(center);
+        const dest = map.getCoordinateFromPixelInternal([
           centerpx[0] - distance * Math.cos(angle),
           centerpx[1] - distance * Math.sin(angle),
         ]);
-
-        this.context.animateInternal({
-          center: this.context.constrainedCenter(dest),
+        view.animateInternal({
+          center: view.getConstrainedCenter(dest),
           duration: 500,
           easing: easeOut,
         });
       }
       if (this.panning_) {
         this.panning_ = false;
-        this.context.endInteraction();
+        view.endInteraction();
       }
-
       return false;
     }
-
     if (this.kinetic_) {
       // reset so we don't overestimate the kinetic energy after
       // after one finger up, tiny drag, second finger up
       this.kinetic_.begin();
     }
-
     this.lastCentroid = null;
     return true;
   }
@@ -169,18 +165,20 @@ class DragPan {
    * @return {boolean} If the event was consumed.
    */
   handleDownEvent(mapBrowserEvent) {
-    if (this.pointer_.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
+    if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
+      const map = mapBrowserEvent.map;
+      const view = map.getView();
       this.lastCentroid = null;
       // stop any current animation
-      if (this.context.animating()) {
-        this.context.cancelAnimations();
+      if (view.getAnimating()) {
+        view.cancelAnimations();
       }
       if (this.kinetic_) {
         this.kinetic_.begin();
       }
       // No kinetic as soon as more than one pointer on the screen is
       // detected. This is to prevent nasty pans after pinch.
-      this.noKinetic_ = this.pointer_.targetPointers.length > 1;
+      this.noKinetic_ = this.targetPointers.length > 1;
       return true;
     }
     return false;

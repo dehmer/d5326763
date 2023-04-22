@@ -36,28 +36,6 @@ import {easeOut, linear} from '../easing.js';
  * by a keyboard event not a button element event.
  * Although interactions do not have a DOM element, some of them do render
  * vectors and so are visible on the screen.
- * 
- * Implemented by
- * @type {<import("./DoubleClickZoom.js")} - getView()
- * @type {<import("./DragAndDrop.js")} - getView(), getViewport()
- * @type {<import("./KeyboardPan.js")} - getView()
- * @type {<import("./KeyboardZoom.js")} - getView()
- * @type {<import("./Link.js")} - getLayerGroup(), getView(), getAllLayers()
- * @type {<import("./MouseWheelZoom.js")} - getView()
- * @type {<import("./Select.js")} - forEachFeatureAtPixel()
- * @type {<import("./Pointer.js")}
- *    @type {<import("./DragBox.js")} - getOverlayContainer(), getCoordinateFromPixelInternal()
- *    @type {<import("./DragPan.js")} - getView(), getEventPixel(), getPixelFromCoordinateInternal()
- *    @type {<import("./DragRotateAndZoom.js")} - getSize(), getView()
- *    @type {<import("./DragRotate.js")} - getSize(), getView()
- *    @type {<import("./Draw.js")} - getPixelFromCoordinate(), getCoordinateFromPixel(), getView(), render()
- *    @type {<import("./Extent.js")} - getCoordinateFromPixelInternal(), render()
- *    @type {<import("./Modify.js")} - isRendered(), getView(), getCoordinateFromPixel(), getPixelFromCoordinate(), forEachFeatureAtPixel(), render()
- *    @type {<import("./PinchRotate.js")} - getView(), getCoordinateFromPixelInternal(), render()
- *    @type {<import("./PinchZoom.js")} - getView(), getCoordinateFromPixelInternal(), render()
- *    @type {<import("./Snap.js")} - getView(), getPixelFromCoordinate()
- *    @type {<import("./Translate.js")} - getViewport(), forEachFeatureAtPixel()
- * 
  * @api
  */
 class Interaction extends BaseObject {
@@ -66,6 +44,21 @@ class Interaction extends BaseObject {
    */
   constructor(options) {
     super();
+
+    /***
+     * @type {InteractionOnSignature<import("../events").EventsKey>}
+     */
+    this.on;
+
+    /***
+     * @type {InteractionOnSignature<import("../events").EventsKey>}
+     */
+    this.once;
+
+    /***
+     * @type {InteractionOnSignature<void>}
+     */
+    this.un;
 
     if (options && options.handleEvent) {
       this.handleEvent = options.handleEvent;
@@ -147,61 +140,31 @@ export function pan(view, delta, duration) {
   }
 }
 
-export function zoomByDelta(context, delta, anchor, duration) {
-  const currentZoom = context.zoom();
+/**
+ * @param {import("../View.js").default} view View.
+ * @param {number} delta Delta from previous zoom level.
+ * @param {import("../coordinate.js").Coordinate} [anchor] Anchor coordinate in the user projection.
+ * @param {number} [duration] Duration.
+ */
+export function zoomByDelta(view, delta, anchor, duration) {
+  const currentZoom = view.getZoom();
 
   if (currentZoom === undefined) {
     return;
   }
 
-  const newZoom = context.constrainedZoom(currentZoom + delta);
-  const newResolution = context.resolutionForZoom(newZoom);
+  const newZoom = view.getConstrainedZoom(currentZoom + delta);
+  const newResolution = view.getResolutionForZoom(newZoom);
 
-  if (context.animating()) {
-    context.cancelAnimations();
+  if (view.getAnimating()) {
+    view.cancelAnimations();
   }
-  context.animate({
+  view.animate({
     resolution: newResolution,
     anchor: anchor,
     duration: duration !== undefined ? duration : 250,
     easing: easeOut,
   });
-}
-
-export const context = map => {
-  const view = map.getView()
-
-  // Interaction-private map/view interface. 
-  
-  return {
-    rendered: () => map.isRendered(),
-    coordinateFromPixel: pixel => map.getCoordinateFromPixel(pixel),
-    coordinateFromPixelInternal: pixel => map.getCoordinateFromPixelInternal(pixel),
-    pixelFromCoordinate: coordinate => map.getPixelFromCoordinate(coordinate),
-    pixelFromCoordinateInternal: coordinate => map.getPixelFromCoordinateInternal(coordinate),
-
-    // FIXME: misleading name: `getEventPixel`, see DragPan interaction (centroid)
-    eventPixel: event => map.getEventPixel(event),
-    forEachFeatureAtPixel: (pixel, callback, options) => map.forEachFeatureAtPixel(pixel, callback, options),
-    interacting: () => view.getInteracting(),
-    projection: () => view.getProjection(),
-    resolution: () => view.getResolution(),
-    resolutionForZoom: zoom => view.getResolutionForZoom(zoom),
-    zoom: () => view.getZoom(),
-    constrainResolution: () => view.getConstrainResolution(),
-    constrainedZoom: (targetZoom, direction) => view.getConstrainedZoom(targetZoom, direction),
-    rotation: () => view.getRotation(),
-    beginInteraction: () => view.beginInteraction(),
-    endInteraction: () => view.endInteraction(),
-    animate: options => view.animate(options),
-    animateInternal: options => view.animateInternal(options),
-    animating: () => view.getAnimating(),
-    cancelAnimations: () => view.cancelAnimations(),
-    centerInternal: () => view.getCenterInternal(),
-    adjustCenterInternal: delta => view.adjustCenterInternal(delta),
-    constrainedCenter: coordinate => view.getConstrainedCenter(coordinate),
-    adjustZoom: (delta, anchor) => view.adjustZoom(delta, anchor)
-  }
 }
 
 export default Interaction;

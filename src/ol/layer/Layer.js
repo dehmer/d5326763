@@ -11,6 +11,10 @@ import {intersects} from '../extent.js';
 import {listen, unlistenByKey} from '../events.js';
 
 /**
+ * @typedef {function(import("../Map.js").FrameState):HTMLElement} RenderFunction
+ */
+
+/**
  * @typedef {'sourceready'|'change:source'} LayerEventType
  */
 
@@ -24,6 +28,34 @@ import {listen, unlistenByKey} from '../events.js';
  *     import("../render/EventType").LayerRenderEventTypes, Return>} LayerOnSignature
  */
 
+/**
+ * @template {import("../source/Source.js").default} [SourceType=import("../source/Source.js").default]
+ * @typedef {Object} Options
+ * @property {string} [className='ol-layer'] A CSS class name to set to the layer element.
+ * @property {number} [opacity=1] Opacity (0, 1).
+ * @property {boolean} [visible=true] Visibility.
+ * @property {import("../extent.js").Extent} [extent] The bounding extent for layer rendering.  The layer will not be
+ * rendered outside of this extent.
+ * @property {number} [zIndex] The z-index for layer rendering.  At rendering time, the layers
+ * will be ordered, first by Z-index and then by position. When `undefined`, a `zIndex` of 0 is assumed
+ * for layers that are added to the map's `layers` collection, or `Infinity` when the layer's `setMap()`
+ * method was used.
+ * @property {number} [minResolution] The minimum resolution (inclusive) at which this layer will be
+ * visible.
+ * @property {number} [maxResolution] The maximum resolution (exclusive) below which this layer will
+ * be visible.
+ * @property {number} [minZoom] The minimum view zoom level (exclusive) above which this layer will be
+ * visible.
+ * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
+ * be visible.
+ * @property {SourceType} [source] Source for this layer.  If not provided to the constructor,
+ * the source can be set by calling {@link module:ol/layer/Layer~Layer#setSource layer.setSource(source)} after
+ * construction.
+ * @property {import("../Map.js").default|null} [map] Map.
+ * @property {RenderFunction} [render] Render function. Takes the frame state as input and is expected to return an
+ * HTML element. Will overwrite the default rendering for the layer.
+ * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
+ */
 
 /**
  * @typedef {Object} State
@@ -39,6 +71,32 @@ import {listen, unlistenByKey} from '../events.js';
  * @property {number} maxZoom Maximum zoom.
  */
 
+/**
+ * @classdesc
+ * Base class from which all layer types are derived. This should only be instantiated
+ * in the case where a custom layer is added to the map with a custom `render` function.
+ * Such a function can be specified in the `options` object, and is expected to return an HTML element.
+ *
+ * A visual representation of raster or vector map data.
+ * Layers group together those properties that pertain to how the data is to be
+ * displayed, irrespective of the source of that data.
+ *
+ * Layers are usually added to a map with [map.addLayer()]{@link import("../Map.js").default#addLayer}.
+ * Components like {@link module:ol/interaction/Draw~Draw} use unmanaged layers
+ * internally. These unmanaged layers are associated with the map using
+ * [layer.setMap()]{@link module:ol/layer/Layer~Layer#setMap} instead.
+ *
+ * A generic `change` event is fired when the state of the source changes.
+ * A `sourceready` event is fired when the layer's source is ready.
+ *
+ * @fires import("../render/Event.js").RenderEvent#prerender
+ * @fires import("../render/Event.js").RenderEvent#postrender
+ * @fires import("../events/Event.js").BaseEvent#sourceready
+ *
+ * @template {import("../source/Source.js").default} [SourceType=import("../source/Source.js").default]
+ * @template {import("../renderer/Layer.js").default} [RendererType=import("../renderer/Layer.js").default]
+ * @api
+ */
 class Layer extends BaseLayer {
   /**
    * @param {Options<SourceType>} options Layer options.
@@ -227,6 +285,13 @@ class Layer extends BaseLayer {
     return this.renderer_.getData(pixel);
   }
 
+  /**
+   * The layer is visible in the given view, i.e. within its min/max resolution or zoom and
+   * extent, and `getVisible()` is `true`.
+   * @param {View|import("../View.js").ViewStateAndExtent} view View or {@link import("../Map.js").FrameState}.
+   * @return {boolean} The layer is visible in the current view.
+   * @api
+   */
   isVisible(view) {
     let frameState;
     if (view instanceof View) {
@@ -245,6 +310,12 @@ class Layer extends BaseLayer {
     );
   }
 
+  /**
+   * Get the attributions of the source of this layer for the given view.
+   * @param {View|import("../View.js").ViewStateAndExtent} view View or  {@link import("../Map.js").FrameState}.
+   * @return {Array<string>} Attributions for this layer at the given view.
+   * @api
+   */
   getAttributions(view) {
     if (!this.isVisible(view)) {
       return [];
@@ -266,6 +337,14 @@ class Layer extends BaseLayer {
     return attributions;
   }
 
+  /**
+   * In charge to manage the rendering of the layer. One layer type is
+   * bounded with one layer renderer.
+   * @param {?import("../Map.js").FrameState} frameState Frame state.
+   * @param {HTMLElement} target Target which the renderer may (but need not) use
+   * for rendering its content.
+   * @return {HTMLElement} The rendered element.
+   */
   render(frameState, target) {
     const layerRenderer = this.getRenderer();
 
@@ -282,6 +361,10 @@ class Layer extends BaseLayer {
     this.rendered = false;
   }
 
+  /**
+   * For use inside the library only.
+   * @param {import("../Map.js").default|null} map Map.
+   */
   setMapInternal(map) {
     if (!map) {
       this.unrender();
@@ -289,10 +372,25 @@ class Layer extends BaseLayer {
     this.set(LayerProperty.MAP, map);
   }
 
+  /**
+   * For use inside the library only.
+   * @return {import("../Map.js").default|null} Map.
+   */
   getMapInternal() {
     return this.get(LayerProperty.MAP);
   }
 
+  /**
+   * Sets the layer to be rendered on top of other layers on a map. The map will
+   * not manage this layer in its layers collection. This
+   * is useful for temporary layers. To remove an unmanaged layer from the map,
+   * use `#setMap(null)`.
+   *
+   * To add the layer to a map and have it managed by the map, use
+   * {@link module:ol/Map~Map#addLayer} instead.
+   * @param {import("../Map.js").default|null} map Map.
+   * @api
+   */
   setMap(map) {
     if (this.mapPrecomposeKey_) {
       unlistenByKey(this.mapPrecomposeKey_);
@@ -314,7 +412,7 @@ class Layer extends BaseLayer {
             /** @type {import("../render/Event.js").default} */ (evt);
           const layerStatesArray = renderEvent.frameState.layerStatesArray;
           const layerState = this.getLayerState(false);
-
+          // A layer can only be added to the map once. Use either `layer.setMap()` or `map.addLayer()`, not both.
           assert(
             !layerStatesArray.some(function (arrayLayerState) {
               return arrayLayerState.layer === layerState.layer;

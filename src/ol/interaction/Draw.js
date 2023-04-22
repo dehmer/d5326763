@@ -1,8 +1,12 @@
+/**
+ * @module ol/interaction/Draw
+ */
 import Circle from '../geom/Circle.js';
 import Event from '../events/Event.js';
 import EventType from '../events/EventType.js';
 import Feature from '../Feature.js';
 import GeometryCollection from '../geom/GeometryCollection.js';
+import InteractionProperty from './Property.js';
 import LineString from '../geom/LineString.js';
 import MapBrowserEvent from '../MapBrowserEvent.js';
 import MapBrowserEventType from '../MapBrowserEventType.js';
@@ -36,8 +40,66 @@ import {
 } from '../coordinate.js';
 import {fromUserCoordinate, getUserProjection} from '../proj.js';
 import {getStrideForLayout} from '../geom/SimpleGeometry.js';
-import { context } from './Interaction'
 
+/**
+ * @typedef {Object} Options
+ * @property {import("../geom/Geometry.js").Type} type Geometry type of
+ * the geometries being drawn with this instance.
+ * @property {number} [clickTolerance=6] The maximum distance in pixels between
+ * "down" and "up" for a "up" event to be considered a "click" event and
+ * actually add a point/vertex to the geometry being drawn.  The default of `6`
+ * was chosen for the draw interaction to behave correctly on mouse as well as
+ * on touch devices.
+ * @property {import("../Collection.js").default<Feature>} [features]
+ * Destination collection for the drawn features.
+ * @property {VectorSource} [source] Destination source for
+ * the drawn features.
+ * @property {number} [dragVertexDelay=500] Delay in milliseconds after pointerdown
+ * before the current vertex can be dragged to its exact position.
+ * @property {number} [snapTolerance=12] Pixel distance for snapping to the
+ * drawing finish. Must be greater than `0`.
+ * @property {boolean} [stopClick=false] Stop click, singleclick, and
+ * doubleclick events from firing during drawing.
+ * @property {number} [maxPoints] The number of points that can be drawn before
+ * a polygon ring or line string is finished. By default there is no
+ * restriction.
+ * @property {number} [minPoints] The number of points that must be drawn
+ * before a polygon ring or line string can be finished. Default is `3` for
+ * polygon rings and `2` for line strings.
+ * @property {import("../events/condition.js").Condition} [finishCondition] A function
+ * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * boolean to indicate whether the drawing can be finished. Not used when drawing
+ * POINT or MULTI_POINT geometries.
+ * @property {import("../style/Style.js").StyleLike|import("../style/flat.js").FlatStyleLike} [style]
+ * Style for sketch features.
+ * @property {GeometryFunction} [geometryFunction]
+ * Function that is called when a geometry's coordinates are updated.
+ * @property {string} [geometryName] Geometry name to use for features created
+ * by the draw interaction.
+ * @property {import("../events/condition.js").Condition} [condition] A function that
+ * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * boolean to indicate whether that event should be handled.
+ * By default {@link module:ol/events/condition.noModifierKeys}, i.e. a click,
+ * adds a vertex or deactivates freehand drawing.
+ * @property {boolean} [freehand=false] Operate in freehand mode for lines,
+ * polygons, and circles.  This makes the interaction always operate in freehand
+ * mode and takes precedence over any `freehandCondition` option.
+ * @property {import("../events/condition.js").Condition} [freehandCondition]
+ * Condition that activates freehand drawing for lines and polygons. This
+ * function takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and
+ * returns a boolean to indicate whether that event should be handled. The
+ * default is {@link module:ol/events/condition.shiftKeyOnly}, meaning that the
+ * Shift key activates freehand drawing.
+ * @property {boolean|import("../events/condition.js").Condition} [trace=false] Trace a portion of another geometry.
+ * Ignored when in freehand mode.
+ * @property {VectorSource} [traceSource] Source for features to trace.  If tracing is active and a `traceSource` is
+ * not provided, the interaction's `source` will be used.  Tracing requires that the interaction is configured with
+ * either a `traceSource` or a `source`.
+ * @property {boolean} [wrapX=false] Wrap the world horizontally on the sketch
+ * overlay.
+ * @property {import("../geom/Geometry.js").GeometryLayout} [geometryLayout='XY'] Layout of the
+ * feature geometries created by the draw interaction.
+ */
 
 /**
  * Coordinate type when drawing points.
@@ -96,7 +158,7 @@ import { context } from './Interaction'
 /**
  * @enum {string}
  */
-export const DrawEventType = {
+const DrawEventType = {
   /**
    * Triggered upon feature draw start
    * @event DrawEvent#drawstart
@@ -122,7 +184,7 @@ export const DrawEventType = {
  * Events emitted by {@link module:ol/interaction/Draw~Draw} instances are
  * instances of this type.
  */
-class DrawEvent extends Event {
+export class DrawEvent extends Event {
   /**
    * @param {DrawEventType} type Type.
    * @param {Feature} feature The feature drawn.
@@ -144,7 +206,7 @@ class DrawEvent extends Event {
  * @param {Array<Feature>} features The candidate features.
  * @return {Array<TraceTarget>} The trace targets.
  */
-export function getTraceTargets(coordinate, features) {
+function getTraceTargets(coordinate, features) {
   /**
    * @type {Array<TraceTarget>}
    */
@@ -173,7 +235,7 @@ function getSquaredDistance(a, b) {
  * @param {number} index The index.  May be wrapped.
  * @return {import("../coordinate.js").Coordinate} The coordinate.
  */
-export function getCoordinate(coordinates, index) {
+function getCoordinate(coordinates, index) {
   const count = coordinates.length;
   if (index < 0) {
     return coordinates[index + count];
@@ -240,7 +302,7 @@ function getCumulativeSquaredDistance(coordinates, startIndex, endIndex) {
  * @param {import("../geom/Geometry.js").default} geometry The candidate geometry.
  * @param {Array<TraceTarget>} targets The trace targets.
  */
-export function appendGeometryTraceTargets(coordinate, geometry, targets) {
+function appendGeometryTraceTargets(coordinate, geometry, targets) {
   if (geometry instanceof LineString) {
     appendTraceTarget(coordinate, geometry.getCoordinates(), false, targets);
     return;
@@ -280,12 +342,25 @@ export function appendGeometryTraceTargets(coordinate, geometry, targets) {
 }
 
 /**
+ * @typedef {Object} TraceTargetUpdateInfo
+ * @property {number} index The new target index.
+ * @property {number} endIndex The new segment end index.
+ */
+
+/**
  * @type {TraceTargetUpdateInfo}
- * FIXME: 1c15ff01 - Move to more narrow scope (draw/shared updated info).
  */
 const sharedUpdateInfo = {index: -1, endIndex: NaN};
 
-export function getTraceTargetUpdate(coordinate, traceState, context, snapTolerance) {
+/**
+ * @param {import("../coordinate.js").Coordinate} coordinate The coordinate.
+ * @param {TraceState} traceState The trace state.
+ * @param {import("../Map.js").default} map The map.
+ * @param {number} snapTolerance The snap tolerance.
+ * @return {TraceTargetUpdateInfo} Information about the new trace target.  The returned
+ * object is reused between calls and must not be modified by the caller.
+ */
+function getTraceTargetUpdate(coordinate, traceState, map, snapTolerance) {
   const x = coordinate[0];
   const y = coordinate[1];
 
@@ -347,7 +422,7 @@ export function getTraceTargetUpdate(coordinate, traceState, context, snapTolera
       newTarget.coordinates,
       newEndIndex
     );
-    const pixel = context.pixelFromCoordinate(newCoordinate);
+    const pixel = map.getPixelFromCoordinate(newCoordinate);
     if (distance(pixel, traceState.startPx) > snapTolerance) {
       considerBothDirections = false;
     }
@@ -400,7 +475,7 @@ export function getTraceTargetUpdate(coordinate, traceState, context, snapTolera
  * @param {boolean} ring The coordinates represent a linear ring.
  * @param {Array<TraceTarget>} targets The trace targets.
  */
-export function appendTraceTarget(coordinate, coordinates, ring, targets) {
+function appendTraceTarget(coordinate, coordinates, ring, targets) {
   const x = coordinate[0];
   const y = coordinate[1];
   for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
@@ -428,7 +503,6 @@ export function appendTraceTarget(coordinate, coordinates, ring, targets) {
 
 /**
  * @type {PointSegmentRelationship}
- * FIXME: 6bb2d2c0 - Move to more narrow scope (draw/shared point relation),
  */
 const sharedRel = {along: 0, squaredDistance: 0};
 
@@ -440,7 +514,7 @@ const sharedRel = {along: 0, squaredDistance: 0};
  * @return {PointSegmentRelationship} The point segment relationship.  The returned object is
  * shared between calls and must not be modified by the caller.
  */
-export function getPointSegmentRelationship(x, y, start, end) {
+function getPointSegmentRelationship(x, y, start, end) {
   const x1 = start[0];
   const y1 = start[1];
   const x2 = end[0];
@@ -466,7 +540,7 @@ export function getPointSegmentRelationship(x, y, start, end) {
  * @param {number} index The index.  May be fractional and may wrap.
  * @return {import("../coordinate.js").Coordinate} The interpolated coordinate.
  */
-export function interpolateCoordinate(coordinates, index) {
+function interpolateCoordinate(coordinates, index) {
   const count = coordinates.length;
 
   let startIndex = Math.floor(index);
@@ -509,33 +583,34 @@ export function interpolateCoordinate(coordinates, index) {
  * @fires DrawEvent
  * @api
  */
-export class Draw {
-
+class Draw extends PointerInteraction {
   /**
    * @param {Options} options Options.
    */
   constructor(options) {
+    const pointerOptions = /** @type {import("./Pointer.js").Options} */ (
+      options
+    );
+    if (!pointerOptions.stopDown) {
+      pointerOptions.stopDown = FALSE;
+    }
 
-    // Callbacks instead of events:
-    const noop = () => {}
-    this.drawstart_ = options.drawstart || noop
-    this.drawend_ = options.drawend || noop
-    this.drawabort_ = options.drawabort || noop
+    super(pointerOptions);
 
-    // Composition over inheritance:
-    this.pointer_ = new PointerInteraction({
-      stopDown: FALSE,
-      handleDownEvent: this.handleDownEvent.bind(this),
-      handleUpEvent: this.handleUpEvent.bind(this)
-    })
+    /***
+     * @type {DrawOnSignature<import("../events").EventsKey>}
+     */
+    this.on;
 
-    this.context = context({
-      initialize: map => this.overlay_.setMap(map),
-      dispose: () => {
-        this.abortDrawing()
-        this.overlay_.setMap(null)
-      }
-    })
+    /***
+     * @type {DrawOnSignature<import("../events").EventsKey>}
+     */
+    this.once;
+
+    /***
+     * @type {DrawOnSignature<void>}
+     */
+    this.un;
 
     /**
      * @type {boolean}
@@ -855,14 +930,8 @@ export class Draw {
      * @private
      */
     this.traceSource_ = options.traceSource || options.source || null;
-  } // constructor
 
-  getActive() {
-    return this.active_.getActive()
-  }
-
-  setActive(value) {
-    this.active_.setActive(value)
+    this.addChangeListener(InteractionProperty.ACTIVE, this.updateState_);
   }
 
   /**
@@ -884,6 +953,17 @@ export class Draw {
   }
 
   /**
+   * Remove the interaction from its current map and attach it to the new map.
+   * Subclasses may set up event handlers to get notified about changes to
+   * the map here.
+   * @param {import("../Map.js").default} map Map.
+   */
+  setMap(map) {
+    super.setMap(map);
+    this.updateState_();
+  }
+
+  /**
    * Get the overlay layer that this interaction renders sketch features to.
    * @return {VectorLayer} Overlay layer.
    * @api
@@ -892,27 +972,28 @@ export class Draw {
     return this.overlay_;
   }
 
-  handleEvent(mapBrowserEvent) {
-    const map = mapBrowserEvent ? mapBrowserEvent.map : null
-    this.context.setMap(map)
-    if (!map) return false
-
-    if (mapBrowserEvent.originalEvent.type === EventType.CONTEXTMENU) {
+  /**
+   * Handles the {@link module:ol/MapBrowserEvent~MapBrowserEvent map browser event} and may actually draw or finish the drawing.
+   * @param {import("../MapBrowserEvent.js").default} event Map browser event.
+   * @return {boolean} `false` to stop event propagation.
+   * @api
+   */
+  handleEvent(event) {
+    if (event.originalEvent.type === EventType.CONTEXTMENU) {
       // Avoid context menu for long taps when drawing on mobile
-      mapBrowserEvent.originalEvent.preventDefault();
+      event.originalEvent.preventDefault();
     }
-    
-    this.freehand_ = this.mode_ !== 'Point' && this.freehandCondition_(mapBrowserEvent);
-    let move = mapBrowserEvent.type === MapBrowserEventType.POINTERMOVE;
+    this.freehand_ = this.mode_ !== 'Point' && this.freehandCondition_(event);
+    let move = event.type === MapBrowserEventType.POINTERMOVE;
     let pass = true;
     if (
       !this.freehand_ &&
       this.lastDragTime_ &&
-      mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG
+      event.type === MapBrowserEventType.POINTERDRAG
     ) {
       const now = Date.now();
       if (now - this.lastDragTime_ >= this.dragVertexDelay_) {
-        this.downPx_ = mapBrowserEvent.pixel;
+        this.downPx_ = event.pixel;
         this.shouldHandle_ = !this.freehand_;
         move = true;
       } else {
@@ -925,36 +1006,36 @@ export class Draw {
     }
     if (
       this.freehand_ &&
-      mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG &&
+      event.type === MapBrowserEventType.POINTERDRAG &&
       this.sketchFeature_ !== null
     ) {
-      this.addToDrawing_(mapBrowserEvent.coordinate);
+      this.addToDrawing_(event.coordinate);
       pass = false;
     } else if (
       this.freehand_ &&
-      mapBrowserEvent.type === MapBrowserEventType.POINTERDOWN
+      event.type === MapBrowserEventType.POINTERDOWN
     ) {
       pass = false;
-    } else if (move && this.pointer_.getPointerCount() < 2) {
-      pass = mapBrowserEvent.type === MapBrowserEventType.POINTERMOVE;
+    } else if (move && this.getPointerCount() < 2) {
+      pass = event.type === MapBrowserEventType.POINTERMOVE;
       if (pass && this.freehand_) {
-        this.handlePointerMove_(mapBrowserEvent);
+        this.handlePointerMove_(event);
         if (this.shouldHandle_) {
           // Avoid page scrolling when freehand drawing on mobile
-          mapBrowserEvent.originalEvent.preventDefault();
+          event.originalEvent.preventDefault();
         }
       } else if (
-        mapBrowserEvent.originalEvent.pointerType === 'mouse' ||
-        (mapBrowserEvent.type === MapBrowserEventType.POINTERDRAG &&
+        event.originalEvent.pointerType === 'mouse' ||
+        (event.type === MapBrowserEventType.POINTERDRAG &&
           this.downTimeout_ === undefined)
       ) {
-        this.handlePointerMove_(mapBrowserEvent);
+        this.handlePointerMove_(event);
       }
-    } else if (mapBrowserEvent.type === MapBrowserEventType.DBLCLICK) {
+    } else if (event.type === MapBrowserEventType.DBLCLICK) {
       pass = false;
     }
 
-    return this.pointer_.handleEvent(mapBrowserEvent) && pass;
+    return super.handleEvent(event) && pass;
   }
 
   /**
@@ -1016,16 +1097,15 @@ export class Draw {
       return;
     }
 
-    const lowerLeft = this.context.coordinateFromPixel([
+    const map = this.getMap();
+    const lowerLeft = map.getCoordinateFromPixel([
       event.pixel[0] - this.snapTolerance_,
       event.pixel[1] + this.snapTolerance_,
     ]);
-
-    const upperRight = this.context.coordinateFromPixel([
+    const upperRight = map.getCoordinateFromPixel([
       event.pixel[0] + this.snapTolerance_,
       event.pixel[1] - this.snapTolerance_,
     ]);
-
     const extent = boundingExtent([lowerLeft, upperRight]);
     const features = this.traceSource_.getFeaturesInExtent(extent);
     if (features.length === 0) {
@@ -1169,7 +1249,7 @@ export class Draw {
     const updatedTraceTarget = getTraceTargetUpdate(
       event.coordinate,
       traceState,
-      this.context,
+      this.getMap(),
       this.snapTolerance_
     );
 
@@ -1203,8 +1283,7 @@ export class Draw {
       target.coordinates,
       target.endIndex
     );
-
-    const pixel = this.context.pixelFromCoordinate(coordinate);
+    const pixel = this.getMap().getPixelFromCoordinate(coordinate);
     event.coordinate = coordinate;
     event.pixel = [Math.round(pixel[0]), Math.round(pixel[1])];
   }
@@ -1217,7 +1296,7 @@ export class Draw {
   handleUpEvent(event) {
     let pass = true;
 
-    if (this.pointer_.getPointerCount() === 0) {
+    if (this.getPointerCount() === 0) {
       if (this.downTimeout_) {
         clearTimeout(this.downTimeout_);
         this.downTimeout_ = undefined;
@@ -1258,6 +1337,11 @@ export class Draw {
     return pass;
   }
 
+  /**
+   * Handle move events.
+   * @param {import("../MapBrowserEvent.js").default} event A move event.
+   * @private
+   */
   handlePointerMove_(event) {
     this.pointerType_ = event.originalEvent.pointerType;
     if (
@@ -1324,9 +1408,10 @@ export class Draw {
         }
       }
       if (potentiallyDone) {
+        const map = this.getMap();
         for (let i = 0, ii = potentiallyFinishCoordinates.length; i < ii; i++) {
           const finishCoordinate = potentiallyFinishCoordinates[i];
-          const finishPixel = this.context.pixelFromCoordinate(finishCoordinate);
+          const finishPixel = map.getPixelFromCoordinate(finishCoordinate);
           const dx = pixel[0] - finishPixel[0];
           const dy = pixel[1] - finishPixel[1];
           const snapTolerance = this.freehand_ ? 1 : this.snapTolerance_;
@@ -1386,6 +1471,7 @@ export class Draw {
    * @private
    */
   startDrawing_(start) {
+    const projection = this.getMap().getView().getProjection();
     const stride = getStrideForLayout(this.geometryLayout_);
     while (start.length < stride) {
       start.push(0);
@@ -1405,7 +1491,7 @@ export class Draw {
     const geometry = this.geometryFunction_(
       this.sketchCoords_,
       undefined,
-      this.context.projection()
+      projection
     );
     this.sketchFeature_ = new Feature();
     if (this.geometryName_) {
@@ -1413,7 +1499,9 @@ export class Draw {
     }
     this.sketchFeature_.setGeometry(geometry);
     this.updateSketchFeatures_();
-    this.drawstart_(this.sketchFeature_)
+    this.dispatchEvent(
+      new DrawEvent(DrawEventType.DRAWSTART, this.sketchFeature_)
+    );
   }
 
   /**
@@ -1422,7 +1510,9 @@ export class Draw {
    * @private
    */
   modifyDrawing_(coordinate) {
+    const map = this.getMap();
     const geometry = this.sketchFeature_.getGeometry();
+    const projection = map.getView().getProjection();
     const stride = getStrideForLayout(this.geometryLayout_);
     let coordinates, last;
     while (coordinate.length < stride) {
@@ -1433,7 +1523,7 @@ export class Draw {
     } else if (this.mode_ === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       last = coordinates[coordinates.length - 1];
-      if (this.atFinish_(this.context.pixelFromCoordinate(coordinate))) {
+      if (this.atFinish_(map.getPixelFromCoordinate(coordinate))) {
         // snap to finish
         coordinate = this.finishCoordinate_.slice();
       }
@@ -1446,7 +1536,7 @@ export class Draw {
     this.geometryFunction_(
       /** @type {!LineCoordType} */ (this.sketchCoords_),
       geometry,
-      this.context.projection()
+      projection
     );
     if (this.sketchPoint_) {
       const sketchPointGeom = this.sketchPoint_.getGeometry();
@@ -1468,6 +1558,7 @@ export class Draw {
    */
   addToDrawing_(coordinate) {
     const geometry = this.sketchFeature_.getGeometry();
+    const projection = this.getMap().getView().getProjection();
     let done;
     let coordinates;
     const mode = this.mode_;
@@ -1482,7 +1573,7 @@ export class Draw {
         }
       }
       coordinates.push(coordinate.slice());
-      this.geometryFunction_(coordinates, geometry, this.context.projection());
+      this.geometryFunction_(coordinates, geometry, projection);
     } else if (mode === 'Polygon') {
       coordinates = /** @type {PolyCoordType} */ (this.sketchCoords_)[0];
       if (coordinates.length >= this.maxPoints_) {
@@ -1496,7 +1587,7 @@ export class Draw {
       if (done) {
         this.finishCoordinate_ = coordinates[0];
       }
-      this.geometryFunction_(this.sketchCoords_, geometry, this.context.projection());
+      this.geometryFunction_(this.sketchCoords_, geometry, projection);
     }
     this.createOrUpdateSketchPoint_(coordinate.slice());
     this.updateSketchFeatures_();
@@ -1513,6 +1604,7 @@ export class Draw {
       return;
     }
     const geometry = this.sketchFeature_.getGeometry();
+    const projection = this.getMap().getView().getProjection();
     const mode = this.mode_;
     for (let i = 0; i < n; ++i) {
       let coordinates;
@@ -1525,7 +1617,7 @@ export class Draw {
           coordinates[coordinates.length - 1] = finishCoordinate;
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
-        this.geometryFunction_(coordinates, geometry, this.context.projection());
+        this.geometryFunction_(coordinates, geometry, projection);
         if (geometry.getType() === 'Polygon' && this.sketchLine_) {
           this.createOrUpdateCustomSketchLine_(
             /** @type {Polygon} */ (geometry)
@@ -1541,7 +1633,7 @@ export class Draw {
           this.createOrUpdateSketchPoint_(finishCoordinate);
         }
         sketchLineGeom.setCoordinates(coordinates);
-        this.geometryFunction_(this.sketchCoords_, geometry, this.context.projection());
+        this.geometryFunction_(this.sketchCoords_, geometry, projection);
       }
 
       if (coordinates.length === 1) {
@@ -1575,14 +1667,15 @@ export class Draw {
     }
     let coordinates = this.sketchCoords_;
     const geometry = sketchFeature.getGeometry();
+    const projection = this.getMap().getView().getProjection();
     if (this.mode_ === 'LineString') {
       // remove the redundant last point
       coordinates.pop();
-      this.geometryFunction_(coordinates, geometry, this.context.projection());
+      this.geometryFunction_(coordinates, geometry, projection);
     } else if (this.mode_ === 'Polygon') {
       // remove the redundant last point in ring
       /** @type {PolyCoordType} */ (coordinates)[0].pop();
-      this.geometryFunction_(coordinates, geometry, this.context.projection());
+      this.geometryFunction_(coordinates, geometry, projection);
       coordinates = geometry.getCoordinates();
     }
 
@@ -1602,7 +1695,7 @@ export class Draw {
     }
 
     // First dispatch event to allow full set up of feature
-    this.drawend_(sketchFeature)
+    this.dispatchEvent(new DrawEvent(DrawEventType.DRAWEND, sketchFeature));
 
     // Then insert feature
     if (this.features_) {
@@ -1636,7 +1729,7 @@ export class Draw {
   abortDrawing() {
     const sketchFeature = this.abortDrawing_();
     if (sketchFeature) {
-      this.drawabort_(sketchFeature)
+      this.dispatchEvent(new DrawEvent(DrawEventType.DRAWABORT, sketchFeature));
     }
   }
 
@@ -1708,7 +1801,9 @@ export class Draw {
     this.sketchCoords_.push(last.slice());
     this.sketchPoint_ = new Feature(new Point(last));
     this.updateSketchFeatures_();
-    this.drawstart_(this.sketchFeature_)
+    this.dispatchEvent(
+      new DrawEvent(DrawEventType.DRAWSTART, this.sketchFeature_)
+    );
   }
 
   /**
@@ -1730,12 +1825,24 @@ export class Draw {
     overlaySource.clear(true);
     overlaySource.addFeatures(sketchFeatures);
   }
+
+  /**
+   * @private
+   */
+  updateState_() {
+    const map = this.getMap();
+    const active = this.getActive();
+    if (!map || !active) {
+      this.abortDrawing();
+    }
+    this.overlay_.setMap(active ? map : null);
+  }
 }
 
 /**
  * @return {import("../style/Style.js").StyleFunction} Styles.
  */
-export function getDefaultStyleFunction() {
+function getDefaultStyleFunction() {
   const styles = createEditingStyle();
   return function (feature, resolution) {
     return styles[feature.getGeometry().getType()];
@@ -1834,7 +1941,7 @@ export function createBox() {
  * @param {import("../geom/Geometry.js").Type} type Geometry type.
  * @return {Mode} Drawing mode.
  */
-export function getMode(type) {
+function getMode(type) {
   switch (type) {
     case 'Point':
     case 'MultiPoint':

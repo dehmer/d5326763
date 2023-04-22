@@ -329,6 +329,12 @@ class Select extends Interaction {
     this.hitTolerance_ = hitTolerance;
   }
 
+  /**
+   * Remove the interaction from its current map, if any,  and attach it to a new
+   * map, if any. Pass `null` to just remove the interaction from the current map.
+   * @param {import("../Map.js").default|null} map Map.
+   * @api
+   */
   setMap(map) {
     const currentMap = this.getMap();
     if (currentMap && this.style_) {

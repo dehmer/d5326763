@@ -380,6 +380,12 @@ class Translate extends PointerInteraction {
     this.hitTolerance_ = hitTolerance;
   }
 
+  /**
+   * Remove the interaction from its current map and attach it to the new map.
+   * Subclasses may set up event handlers to get notified about changes to
+   * the map here.
+   * @param {import("../Map.js").default} map Map.
+   */
   setMap(map) {
     const oldMap = this.getMap();
     super.setMap(map);
@@ -393,6 +399,10 @@ class Translate extends PointerInteraction {
     this.updateState_(null);
   }
 
+  /**
+   * @param {import("../Map.js").default} oldMap Old map.
+   * @private
+   */
   updateState_(oldMap) {
     let map = this.getMap();
     const active = this.getActive();

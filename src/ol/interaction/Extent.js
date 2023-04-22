@@ -21,6 +21,26 @@ import {fromExtent as polygonFromExtent} from '../geom/Polygon.js';
 import {toUserExtent} from '../proj.js';
 
 /**
+ * @typedef {Object} Options
+ * @property {import("../events/condition.js").Condition} [condition] A function that
+ * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * boolean to indicate whether that event should be handled.
+ * Default is {@link module:ol/events/condition.always}.
+ * @property {import("../extent.js").Extent} [extent] Initial extent. Defaults to no
+ * initial extent.
+ * @property {import("../style/Style.js").StyleLike} [boxStyle]
+ * Style for the drawn extent box. Defaults to the `Polygon` editing style
+ * documented in {@link module:ol/style/Style~Style}
+ * @property {number} [pixelTolerance=10] Pixel tolerance for considering the
+ * pointer close enough to a segment or vertex for editing.
+ * @property {import("../style/Style.js").StyleLike} [pointerStyle]
+ * Style for the cursor used to draw the extent. Defaults to the `Point` editing style
+ * documented in {@link module:ol/style/Style~Style}
+ * @property {boolean} [wrapX=false] Wrap the drawn extent across multiple maps
+ * in the X direction? Only affects visuals, not functionality.
+ */
+
+/**
  * @enum {string}
  */
 const ExtentEventType = {
@@ -32,36 +52,129 @@ const ExtentEventType = {
   EXTENTCHANGED: 'extentchanged',
 };
 
+/**
+ * @classdesc
+ * Events emitted by {@link module:ol/interaction/Extent~Extent} instances are
+ * instances of this type.
+ */
 export class ExtentEvent extends Event {
   /**
    * @param {import("../extent.js").Extent} extent the new extent
    */
   constructor(extent) {
     super(ExtentEventType.EXTENTCHANGED);
+
+    /**
+     * The current extent.
+     * @type {import("../extent.js").Extent}
+     * @api
+     */
     this.extent = extent;
   }
 }
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'extentchanged', ExtentEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'extentchanged', Return>} ExtentOnSignature
+ */
+
+/**
+ * @classdesc
+ * Allows the user to draw a vector box by clicking and dragging on the map.
+ * Once drawn, the vector box can be modified by dragging its vertices or edges.
+ * This interaction is only supported for mouse devices.
+ *
+ * @fires ExtentEvent
+ * @api
+ */
 class Extent extends PointerInteraction {
+  /**
+   * @param {Options} [options] Options.
+   */
   constructor(options) {
     options = options || {};
 
-    super(options);
+    super(/** @type {import("./Pointer.js").Options} */ (options));
 
+    /***
+     * @type {ExtentOnSignature<import("../events").EventsKey>}
+     */
+    this.on;
+
+    /***
+     * @type {ExtentOnSignature<import("../events").EventsKey>}
+     */
+    this.once;
+
+    /***
+     * @type {ExtentOnSignature<void>}
+     */
+    this.un;
+
+    /**
+     * Condition
+     * @type {import("../events/condition.js").Condition}
+     * @private
+     */
     this.condition_ = options.condition ? options.condition : always;
+
+    /**
+     * Extent of the drawn box
+     * @type {import("../extent.js").Extent}
+     * @private
+     */
     this.extent_ = null;
+
+    /**
+     * Handler for pointer move events
+     * @type {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent|null}
+     * @private
+     */
     this.pointerHandler_ = null;
+
+    /**
+     * Pixel threshold to snap to extent
+     * @type {number}
+     * @private
+     */
     this.pixelTolerance_ =
       options.pixelTolerance !== undefined ? options.pixelTolerance : 10;
 
+    /**
+     * Is the pointer snapped to an extent vertex
+     * @type {boolean}
+     * @private
+     */
     this.snappedToVertex_ = false;
+
+    /**
+     * Feature for displaying the visible extent
+     * @type {Feature}
+     * @private
+     */
     this.extentFeature_ = null;
+
+    /**
+     * Feature for displaying the visible pointer
+     * @type {Feature<Point>}
+     * @private
+     */
     this.vertexFeature_ = null;
 
     if (!options) {
       options = {};
     }
 
+    /**
+     * Layer for the extentFeature
+     * @type {VectorLayer}
+     * @private
+     */
     this.extentOverlay_ = new VectorLayer({
       source: new VectorSource({
         useSpatialIndex: false,
@@ -74,6 +187,11 @@ class Extent extends PointerInteraction {
       updateWhileInteracting: true,
     });
 
+    /**
+     * Layer for the vertexFeature
+     * @type {VectorLayer}
+     * @private
+     */
     this.vertexOverlay_ = new VectorLayer({
       source: new VectorSource({
         useSpatialIndex: false,
@@ -91,6 +209,12 @@ class Extent extends PointerInteraction {
     }
   }
 
+  /**
+   * @param {import("../pixel.js").Pixel} pixel cursor location
+   * @param {import("../Map.js").default} map map
+   * @return {import("../coordinate.js").Coordinate|null} snapped vertex on extent
+   * @private
+   */
   snapToVertex_(pixel, map) {
     const pixelCoordinate = map.getCoordinateFromPixelInternal(pixel);
     const sortByDistance = function (a, b) {
@@ -128,8 +252,11 @@ class Extent extends PointerInteraction {
     return null;
   }
 
+  /**
+   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent pointer move event
+   * @private
+   */
   handlePointerMove_(mapBrowserEvent) {
-    // console.log('[Extent/handlePointerMove_]', mapBrowserEvent)
     const pixel = mapBrowserEvent.pixel;
     const map = mapBrowserEvent.map;
 
@@ -140,6 +267,11 @@ class Extent extends PointerInteraction {
     this.createOrUpdatePointerFeature_(vertex);
   }
 
+  /**
+   * @param {import("../extent.js").Extent} extent extent
+   * @return {Feature} extent as featrue
+   * @private
+   */
   createOrUpdateExtentFeature_(extent) {
     let extentFeature = this.extentFeature_;
 
@@ -161,6 +293,11 @@ class Extent extends PointerInteraction {
     return extentFeature;
   }
 
+  /**
+   * @param {import("../coordinate.js").Coordinate} vertex location of feature
+   * @return {Feature} vertex as feature
+   * @private
+   */
   createOrUpdatePointerFeature_(vertex) {
     let vertexFeature = this.vertexFeature_;
     if (!vertexFeature) {
@@ -174,8 +311,11 @@ class Extent extends PointerInteraction {
     return vertexFeature;
   }
 
+  /**
+   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Map browser event.
+   * @return {boolean} `false` to stop event propagation.
+   */
   handleEvent(mapBrowserEvent) {
-    // console.log('[Extent/handleEvent]', mapBrowserEvent)
     if (!mapBrowserEvent.originalEvent || !this.condition_(mapBrowserEvent)) {
       return true;
     }
@@ -192,6 +332,11 @@ class Extent extends PointerInteraction {
     return false;
   }
 
+  /**
+   * Handle pointer down events.
+   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
+   * @return {boolean} If the event was consumed.
+   */
   handleDownEvent(mapBrowserEvent) {
     const pixel = mapBrowserEvent.pixel;
     const map = mapBrowserEvent.map;
@@ -218,7 +363,6 @@ class Extent extends PointerInteraction {
       }
       return null;
     };
-    
     if (vertex && extent) {
       const x =
         vertex[0] == extent[0] || vertex[0] == extent[2] ? vertex[0] : null;
@@ -249,6 +393,10 @@ class Extent extends PointerInteraction {
     return true; //event handled; start downup sequence
   }
 
+  /**
+   * Handle pointer drag events.
+   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
+   */
   handleDragEvent(mapBrowserEvent) {
     if (this.pointerHandler_) {
       const pixelCoordinate = mapBrowserEvent.coordinate;
@@ -257,6 +405,11 @@ class Extent extends PointerInteraction {
     }
   }
 
+  /**
+   * Handle pointer up events.
+   * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Event.
+   * @return {boolean} If the event was consumed.
+   */
   handleUpEvent(mapBrowserEvent) {
     this.pointerHandler_ = null;
     //If bbox is zero area, set to null;
@@ -267,12 +420,24 @@ class Extent extends PointerInteraction {
     return false; //Stop handling downup sequence
   }
 
+  /**
+   * Remove the interaction from its current map and attach it to the new map.
+   * Subclasses may set up event handlers to get notified about changes to
+   * the map here.
+   * @param {import("../Map.js").default} map Map.
+   */
   setMap(map) {
     this.extentOverlay_.setMap(map);
     this.vertexOverlay_.setMap(map);
     super.setMap(map);
   }
 
+  /**
+   * Returns the current drawn extent in the view projection (or user projection if set)
+   *
+   * @return {import("../extent.js").Extent} Drawn extent in the view projection.
+   * @api
+   */
   getExtent() {
     return toUserExtent(
       this.getExtentInternal(),
@@ -280,10 +445,22 @@ class Extent extends PointerInteraction {
     );
   }
 
+  /**
+   * Returns the current drawn extent in the view projection
+   *
+   * @return {import("../extent.js").Extent} Drawn extent in the view projection.
+   * @api
+   */
   getExtentInternal() {
     return this.extent_;
   }
 
+  /**
+   * Manually sets the drawn extent, using the view projection.
+   *
+   * @param {import("../extent.js").Extent} extent Extent
+   * @api
+   */
   setExtent(extent) {
     //Null extent means no bbox
     this.extent_ = extent ? extent : null;
@@ -292,6 +469,11 @@ class Extent extends PointerInteraction {
   }
 }
 
+/**
+ * Returns the default style for the drawn bbox
+ *
+ * @return {import("../style/Style.js").StyleFunction} Default Extent style
+ */
 function getDefaultExtentStyleFunction() {
   const style = createEditingStyle();
   return function (feature, resolution) {
@@ -299,6 +481,11 @@ function getDefaultExtentStyleFunction() {
   };
 }
 
+/**
+ * Returns the default style for the pointer
+ *
+ * @return {import("../style/Style.js").StyleFunction} Default pointer style
+ */
 function getDefaultPointerStyleFunction() {
   const style = createEditingStyle();
   return function (feature, resolution) {
@@ -306,12 +493,21 @@ function getDefaultPointerStyleFunction() {
   };
 }
 
+/**
+ * @param {import("../coordinate.js").Coordinate} fixedPoint corner that will be unchanged in the new extent
+ * @return {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent} event handler
+ */
 function getPointHandler(fixedPoint) {
   return function (point) {
     return boundingExtent([fixedPoint, point]);
   };
 }
 
+/**
+ * @param {import("../coordinate.js").Coordinate} fixedP1 first corner that will be unchanged in the new extent
+ * @param {import("../coordinate.js").Coordinate} fixedP2 second corner that will be unchanged in the new extent
+ * @return {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent|null} event handler
+ */
 function getEdgeHandler(fixedP1, fixedP2) {
   if (fixedP1[0] == fixedP2[0]) {
     return function (point) {
@@ -325,6 +521,10 @@ function getEdgeHandler(fixedP1, fixedP2) {
   return null;
 }
 
+/**
+ * @param {import("../extent.js").Extent} extent extent
+ * @return {Array<Array<import("../coordinate.js").Coordinate>>} extent line segments
+ */
 function getSegments(extent) {
   return [
     [
