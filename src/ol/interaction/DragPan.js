@@ -12,10 +12,8 @@ import {
   primaryAction,
 } from '../events/condition.js';
 import {easeOut} from '../easing.js';
-import {
-  rotate as rotateCoordinate,
-  scale as scaleCoordinate,
-} from '../coordinate.js';
+import {rotate as rotateCoordinate} from '../coordinate/rotate.js';
+import {scale as scaleCoordinate} from '../coordinate/scale.js';
 
 /**
  * @typedef {Object} Options

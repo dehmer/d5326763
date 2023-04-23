@@ -75,7 +75,8 @@ import {applyTransform} from './extent/applyTransform.js';
 import {getWidth} from './extent/getWidth.js';
 import {modulo} from './math/modulo.js';
 import {clamp} from './math/clamp.js';
-import {equals, getWorldsAway} from './coordinate.js';
+import {equals} from './coordinate/equals.js';
+import {getWorldsAway} from './coordinate/getWorldsAway.js';
 import {getDistance} from './sphere.js';
 import {warn} from './console.js';
 

@@ -16,12 +16,10 @@ import {
   toUserExtent,
 } from './proj.js';
 import {VOID} from './functions/VOID.js';
-import {
-  add as addCoordinate,
-  equals as coordinatesEqual,
-  equals,
-  rotate as rotateCoordinate,
-} from './coordinate.js';
+import {add as addCoordinate} from './coordinate/add.js';
+import {equals as coordinatesEqual} from './coordinate/equals.js';
+import {equals} from './coordinate/equals.js';
+import {rotate as rotateCoordinate} from './coordinate/rotate.js';
 import {assert} from './asserts.js';
 import {none as centerNone, createExtent} from './centerconstraint.js';
 import {modulo} from './math/modulo.js';
