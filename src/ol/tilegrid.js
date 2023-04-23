@@ -4,6 +4,7 @@
 import TileGrid from './tilegrid/TileGrid.js';
 import {DEFAULT_MAX_ZOOM, DEFAULT_TILE_SIZE} from './tilegrid/common.js';
 import {METERS_PER_UNIT, get as getProjection} from './proj.js';
+
 import {
   containsCoordinate,
   createOrUpdate,

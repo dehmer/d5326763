@@ -95,7 +95,6 @@ import {warn} from './console.js';
  */
 
 export {METERS_PER_UNIT};
-
 export {Projection};
 
 let showCoordinateWarning = true;

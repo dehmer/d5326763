@@ -1,7 +1,8 @@
 <script>
-  import * as ol from './ol'
-  import { OSM } from './ol/source'
-  import { Tile as TileLayer } from './ol/layer'
+  import Map from './ol/Map'
+  import View from './ol/View'
+  import OSM from './ol/source/OSM'
+  import TileLayer from './ol/layer/Tile'
 
   const setup = target => {
     target.focus()
@@ -9,13 +10,13 @@
     const zoom = 14
     const center = [1737884.370211603, 6146136.723228034]
     const defaultViewport = { zoom, center }
-    const view = new ol.View(defaultViewport)
+    const view = new View(defaultViewport)
     const controls = []
     const layers = [
         new TileLayer({ source: new OSM() })
       ]
 
-    let map = new ol.Map({
+    let map = new Map({
       target,
       layers,
       view,
