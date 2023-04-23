@@ -34,8 +34,6 @@ import {
   getForViewAndSize,
   isEmpty,
 } from './extent.js';
-import {defaults as defaultControls} from './control/defaults.js';
-import {defaults as defaultInteractions} from './interaction/defaults.js';
 import {equals} from './array.js';
 import {fromUserCoordinate, toUserCoordinate} from './proj.js';
 import {getUid} from './util.js';
@@ -435,17 +433,13 @@ class Map extends BaseObject {
      * @type {Collection<import("./control/Control.js").default>}
      * @protected
      */
-    this.controls = optionsInternal.controls || defaultControls();
+    this.controls = optionsInternal.controls;
 
     /**
      * @type {Collection<import("./interaction/Interaction.js").default>}
      * @protected
      */
-    this.interactions =
-      optionsInternal.interactions ||
-      defaultInteractions({
-        onFocusOnly: true,
-      });
+    this.interactions = optionsInternal.interactions;
 
     /**
      * @type {Collection<import("./Overlay.js").default>}

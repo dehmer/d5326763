@@ -3,6 +3,7 @@
   import View from './ol/View'
   import OSM from './ol/source/OSM'
   import TileLayer from './ol/layer/Tile'
+  import { defaults as defaultInteractions } from './ol/interaction/defaults'
 
   const setup = target => {
     target.focus()
@@ -12,6 +13,8 @@
     const defaultViewport = { zoom, center }
     const view = new View(defaultViewport)
     const controls = []
+    const interactions = defaultInteractions({ onFocusOnly: true })
+
     const layers = [
         new TileLayer({ source: new OSM() })
       ]
@@ -20,7 +23,8 @@
       target,
       layers,
       view,
-      controls
+      controls,
+      interactions
     })
 
     const destroy = () => {
