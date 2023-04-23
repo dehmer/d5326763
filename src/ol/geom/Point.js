@@ -4,7 +4,7 @@
 import SimpleGeometry from './SimpleGeometry.js';
 import {containsXY, createOrUpdateFromCoordinate} from '../extent.js';
 import {deflateCoordinate} from './flat/deflate.js';
-import {squaredDistance as squaredDx} from '../math.js';
+import {squaredDistance as squaredDx} from '../math/squaredDistance.js';
 
 /**
  * @classdesc

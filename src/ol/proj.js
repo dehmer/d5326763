@@ -72,7 +72,8 @@ import {
   get as getTransformFunc,
 } from './proj/transforms.js';
 import {applyTransform, getWidth} from './extent.js';
-import {clamp, modulo} from './math.js';
+import {modulo} from './math/modulo.js';
+import {clamp} from './math/clamp.js';
 import {equals, getWorldsAway} from './coordinate.js';
 import {getDistance} from './sphere.js';
 import {warn} from './console.js';

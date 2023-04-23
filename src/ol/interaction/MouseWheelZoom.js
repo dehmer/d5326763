@@ -5,7 +5,7 @@ import EventType from '../events/EventType.js';
 import Interaction, {zoomByDelta} from './Interaction.js';
 import {DEVICE_PIXEL_RATIO, FIREFOX} from '../has.js';
 import {all, always, focusWithTabindex} from '../events/condition.js';
-import {clamp} from '../math.js';
+import {clamp} from '../math/clamp.js';
 
 /**
  * @typedef {'trackpad' | 'wheel'} Mode

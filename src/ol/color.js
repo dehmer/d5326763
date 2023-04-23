@@ -2,7 +2,7 @@
  * @module ol/color
  */
 import {assert} from './asserts.js';
-import {clamp} from './math.js';
+import {clamp} from './math/clamp.js';
 
 /**
  * A color represented as a short array [red, green, blue, alpha].

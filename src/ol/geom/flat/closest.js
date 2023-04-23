@@ -1,7 +1,8 @@
 /**
  * @module ol/geom/flat/closest
  */
-import {lerp, squaredDistance as squaredDx} from '../../math.js';
+import {lerp} from '../../math/lerp.js';
+import {squaredDistance as squaredDx} from '../../math/squaredDistance.js';
 
 /**
  * Returns the point on the 2D line segment flatCoordinates[offset1] to

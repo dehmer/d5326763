@@ -24,7 +24,8 @@ import {
 } from './coordinate.js';
 import {assert} from './asserts.js';
 import {none as centerNone, createExtent} from './centerconstraint.js';
-import {clamp, modulo} from './math.js';
+import {modulo} from './math/modulo.js';
+import {clamp} from './math/clamp.js';
 import {
   createMinMaxResolution,
   createSnapToPower,

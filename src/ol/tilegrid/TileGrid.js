@@ -6,7 +6,9 @@ import TileRange, {
 } from '../TileRange.js';
 import {DEFAULT_TILE_SIZE} from './common.js';
 import {assert} from '../asserts.js';
-import {ceil, clamp, floor} from '../math.js';
+import {ceil} from '../math/ceil.js';
+import {floor} from '../math/floor.js';
+import {clamp} from '../math/clamp.js';
 import {createOrUpdate, getTopLeft} from '../extent.js';
 import {createOrUpdate as createOrUpdateTileCoord} from '../tilecoord.js';
 import {intersectsLinearRing} from '../geom/flat/intersectsextent.js';

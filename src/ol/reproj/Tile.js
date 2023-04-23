@@ -12,7 +12,7 @@ import {
   canvasPool,
   render as renderReprojected,
 } from '../reproj.js';
-import {clamp} from '../math.js';
+import {clamp} from '../math/clamp.js';
 import {getArea, getIntersection} from '../extent.js';
 import {listen, unlistenByKey} from '../events.js';
 import {releaseCanvas} from '../dom.js';

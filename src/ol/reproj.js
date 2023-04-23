@@ -13,7 +13,7 @@ import {
 } from './extent.js';
 import {createCanvasContext2D, releaseCanvas} from './dom.js';
 import {getPointResolution, transform} from './proj.js';
-import {solveLinearSystem} from './math.js';
+import {solveLinearSystem} from './math/solveLinearSystem.js';
 
 let brokenDiagonalRendering_;
 

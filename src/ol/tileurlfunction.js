@@ -2,7 +2,7 @@
  * @module ol/tileurlfunction
  */
 import {assert} from './asserts.js';
-import {modulo} from './math.js';
+import {modulo} from './math/modulo.js';
 import {hash as tileCoordHash} from './tilecoord.js';
 
 /**

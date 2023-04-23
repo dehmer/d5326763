@@ -27,7 +27,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-import {squaredDistance, squaredSegmentDistance} from '../../math.js';
+import {squaredDistance} from '../../math/squaredDistance.js';
+import {squaredSegmentDistance} from '../../math/squaredSegmentDistance.js';
 
 /**
  * @param {Array<number>} flatCoordinates Flat coordinates.

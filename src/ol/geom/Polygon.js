@@ -14,7 +14,7 @@ import {intersectsLinearRingArray} from './flat/intersectsextent.js';
 import {linearRingsAreOriented, orientLinearRings} from './flat/orient.js';
 import {linearRings as linearRingsArea} from './flat/area.js';
 import {linearRingsContainsXY} from './flat/contains.js';
-import {modulo} from '../math.js';
+import {modulo} from '../math/modulo.js';
 import {quantizeArray} from './flat/simplify.js';
 import {offset as sphereOffset} from '../sphere.js';
 

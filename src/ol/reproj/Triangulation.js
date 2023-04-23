@@ -14,7 +14,7 @@ import {
   intersects,
 } from '../extent.js';
 import {getTransform} from '../proj.js';
-import {modulo} from '../math.js';
+import {modulo} from '../math/modulo.js';
 
 /**
  * Single triangle; consists of 3 source points and 3 target points.
