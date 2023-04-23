@@ -1,7 +1,7 @@
 /**
  * @module ol/coordinate
  */
-import {getWidth} from './extent.js';
+import {getWidth} from './extent/getWidth.js';
 import {modulo} from './math/modulo.js';
 import {toFixed} from './math/toFixed.js';
 import {padNumber} from './string.js';

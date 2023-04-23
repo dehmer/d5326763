@@ -38,13 +38,11 @@ import {
   none as rotationNone,
 } from './rotationconstraint.js';
 import {easeOut, inAndOut} from './easing.js';
-import {
-  getCenter,
-  getForViewAndSize,
-  getHeight,
-  getWidth,
-  isEmpty,
-} from './extent.js';
+import {getForViewAndSize} from './extent/getForViewAndSize.js';
+import {getCenter} from './extent/getCenter.js';
+import {getHeight} from './extent/getHeight.js';
+import {getWidth} from './extent/getWidth.js';
+import {isEmpty} from './extent/isEmpty.js';
 import {linearFindNearest} from './array/linearFindNearest.js';
 import {fromExtent as polygonFromExtent} from './geom/Polygon.js';
 

@@ -1,16 +1,14 @@
 /**
  * @module ol/reproj
  */
-import {
-  containsCoordinate,
-  createEmpty,
-  extend,
-  forEachCorner,
-  getCenter,
-  getHeight,
-  getTopLeft,
-  getWidth,
-} from './extent.js';
+import {containsCoordinate} from './extent/containsCoordinate.js';
+import {createEmpty} from './extent/createEmpty.js';
+import {getTopLeft} from './extent/getTopLeft.js';
+import {extend} from './extent/extend.js';
+import {forEachCorner} from './extent/forEachCorner.js';
+import {getCenter} from './extent/getCenter.js';
+import {getHeight} from './extent/getHeight.js';
+import {getWidth} from './extent/getWidth.js';
 import {createCanvasContext2D, releaseCanvas} from './dom.js';
 import {getPointResolution, transform} from './proj.js';
 import {solveLinearSystem} from './math/solveLinearSystem.js';

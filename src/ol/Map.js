@@ -27,13 +27,11 @@ import {
   create as createTransform,
 } from './transform.js';
 import {assert} from './asserts.js';
-import {
-  clone,
-  createOrUpdateEmpty,
-  equals as equalsExtent,
-  getForViewAndSize,
-  isEmpty,
-} from './extent.js';
+import {clone} from './extent/clone.js';
+import {getForViewAndSize} from './extent/getForViewAndSize.js';
+import {createOrUpdateEmpty} from './extent/createOrUpdateEmpty.js';
+import {equals as equalsExtent} from './extent/equals.js';
+import {isEmpty} from './extent/isEmpty.js';
 import {equals} from './array/equals.js';
 import {fromUserCoordinate, toUserCoordinate} from './proj.js';
 import {getUid} from './util.js';

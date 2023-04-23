@@ -5,7 +5,7 @@ import EventType from './events/EventType.js';
 import ImageBase from './ImageBase.js';
 import ImageState from './ImageState.js';
 import {IMAGE_DECODE} from './has.js';
-import {getHeight} from './extent.js';
+import {getHeight} from './extent/getHeight.js';
 import {listenOnce, unlistenByKey} from './events.js';
 
 /**

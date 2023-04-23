@@ -4,14 +4,11 @@
 import TileGrid from './tilegrid/TileGrid.js';
 import {DEFAULT_MAX_ZOOM, DEFAULT_TILE_SIZE} from './tilegrid/common.js';
 import {METERS_PER_UNIT, get as getProjection} from './proj.js';
-
-import {
-  containsCoordinate,
-  createOrUpdate,
-  getCorner,
-  getHeight,
-  getWidth,
-} from './extent.js';
+import {containsCoordinate} from './extent/containsCoordinate.js';
+import {createOrUpdate} from './extent/createOrUpdate.js';
+import {getCorner} from './extent/getCorner.js';
+import {getHeight} from './extent/getHeight.js';
+import {getWidth} from './extent/getWidth.js';
 import {toSize} from './size.js';
 
 /**

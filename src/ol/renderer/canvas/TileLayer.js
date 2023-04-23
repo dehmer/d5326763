@@ -13,17 +13,15 @@ import {
   toString as toTransformString,
 } from '../../transform.js';
 import {ascending} from '../../array/ascending.js';
-import {
-  containsCoordinate,
-  createEmpty,
-  equals,
-  getHeight,
-  getIntersection,
-  getRotatedViewport,
-  getTopLeft,
-  getWidth,
-  intersects,
-} from '../../extent.js';
+import {containsCoordinate} from '../../extent/containsCoordinate.js';
+import {createEmpty} from '../../extent/createEmpty.js';
+import {getRotatedViewport} from '../../extent/getRotatedViewport.js';
+import {getTopLeft} from '../../extent/getTopLeft.js';
+import {equals} from '../../extent/equals.js';
+import {getHeight} from '../../extent/getHeight.js';
+import {getWidth} from '../../extent/getWidth.js';
+import {intersects} from '../../extent/intersects.js';
+import {getIntersection} from '../../extent/getIntersection.js';
 import {fromUserExtent} from '../../proj.js';
 import {getUid} from '../../util.js';
 import {toSize} from '../../size.js';

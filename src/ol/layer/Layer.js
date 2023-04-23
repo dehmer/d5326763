@@ -7,7 +7,7 @@ import LayerProperty from './Property.js';
 import RenderEventType from '../render/EventType.js';
 import View from '../View.js';
 import {assert} from '../asserts.js';
-import {intersects} from '../extent.js';
+import {intersects} from '../extent/intersects.js';
 import {listen, unlistenByKey} from '../events.js';
 
 /**

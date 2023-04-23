@@ -9,7 +9,7 @@ import EventType from '../events/EventType.js';
 import ObjectEventType from '../ObjectEventType.js';
 import {assert} from '../asserts.js';
 import {clear} from '../obj.js';
-import {getIntersection} from '../extent.js';
+import {getIntersection} from '../extent/getIntersection.js';
 import {getUid} from '../util.js';
 import {listen, unlistenByKey} from '../events.js';
 

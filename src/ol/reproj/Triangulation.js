@@ -1,18 +1,16 @@
 /**
  * @module ol/reproj/Triangulation
  */
-import {
-  boundingExtent,
-  createEmpty,
-  extendCoordinate,
-  getArea,
-  getBottomLeft,
-  getBottomRight,
-  getTopLeft,
-  getTopRight,
-  getWidth,
-  intersects,
-} from '../extent.js';
+import {boundingExtent} from '../extent/boundingExtent.js';
+import {createEmpty} from '../extent/createEmpty.js';
+import {extendCoordinate} from '../extent/extendCoordinate.js';
+import {getBottomLeft} from '../extent/getBottomLeft.js';
+import {getBottomRight} from '../extent/getBottomRight.js';
+import {getTopLeft} from '../extent/getTopLeft.js';
+import {getTopRight} from '../extent/getTopRight.js';
+import {getArea} from '../extent/getArea.js';
+import {getWidth} from '../extent/getWidth.js';
+import {intersects} from '../extent/intersects.js';
 import {getTransform} from '../proj.js';
 import {modulo} from '../math/modulo.js';
 

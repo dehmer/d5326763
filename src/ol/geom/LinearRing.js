@@ -3,7 +3,7 @@
  */
 import SimpleGeometry from './SimpleGeometry.js';
 import {assignClosestPoint, maxSquaredDelta} from './flat/closest.js';
-import {closestSquaredDistanceXY} from '../extent.js';
+import {closestSquaredDistanceXY} from '../extent/closestSquaredDistanceXY.js';
 import {deflateCoordinates} from './flat/deflate.js';
 import {douglasPeucker} from './flat/simplify.js';
 import {inflateCoordinates} from './flat/inflate.js';

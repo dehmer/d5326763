@@ -7,12 +7,10 @@ import {
   compose as composeTransform,
   create as createTransform,
 } from '../transform.js';
-import {
-  createEmpty,
-  createOrUpdateEmpty,
-  getHeight,
-  returnOrUpdate,
-} from '../extent.js';
+import {createEmpty} from '../extent/createEmpty.js';
+import {createOrUpdateEmpty} from '../extent/createOrUpdateEmpty.js';
+import {getHeight} from '../extent/getHeight.js';
+import {returnOrUpdate} from '../extent/returnOrUpdate.js';
 import {get as getProjection, getTransform} from '../proj.js';
 import {memoizeOne} from '../functions/memoizeOne.js';
 import {transform2D} from './flat/transform.js';

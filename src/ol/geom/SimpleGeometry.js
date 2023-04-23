@@ -3,7 +3,8 @@
  */
 import Geometry from './Geometry.js';
 import {abstract} from '../util.js';
-import {createOrUpdateFromFlatCoordinates, getCenter} from '../extent.js';
+import {createOrUpdateFromFlatCoordinates} from '../extent/createOrUpdateFromFlatCoordinates.js';
+import {getCenter} from '../extent/getCenter.js';
 import {rotate, scale, transform2D, translate} from './flat/transform.js';
 
 /**

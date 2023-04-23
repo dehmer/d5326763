@@ -12,12 +12,10 @@ import {
 import {asArray} from '../../color.js';
 import {createCanvasContext2D} from '../../dom.js';
 import {equals} from '../../array/equals.js';
-import {
-  getBottomLeft,
-  getBottomRight,
-  getTopLeft,
-  getTopRight,
-} from '../../extent.js';
+import {getBottomLeft} from '../../extent/getBottomLeft.js';
+import {getBottomRight} from '../../extent/getBottomRight.js';
+import {getTopLeft} from '../../extent/getTopLeft.js';
+import {getTopRight} from '../../extent/getTopRight.js';
 
 /**
  * @type {Array<HTMLCanvasElement>}

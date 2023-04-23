@@ -2,7 +2,8 @@
  * @module ol/resolutionconstraint
  */
 import {clamp} from './math/clamp.js';
-import {getHeight, getWidth} from './extent.js';
+import {getHeight} from './extent/getHeight.js';
+import {getWidth} from './extent/getWidth.js';
 import {linearFindNearest} from './array/linearFindNearest.js';
 
 /**
