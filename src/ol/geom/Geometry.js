@@ -3,10 +3,8 @@
  */
 import BaseObject from '../Object.js';
 import {abstract} from '../util.js';
-import {
-  compose as composeTransform,
-  create as createTransform,
-} from '../transform.js';
+import {create as createTransform} from '../transform/create.js'
+import {compose as composeTransform} from '../transform/compose.js'
 import {createEmpty} from '../extent/createEmpty.js';
 import {createOrUpdateEmpty} from '../extent/createOrUpdateEmpty.js';
 import {getHeight} from '../extent/getHeight.js';

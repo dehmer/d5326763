@@ -22,10 +22,8 @@ import View from './View.js';
 import ViewHint from './ViewHint.js';
 import {DEVICE_PIXEL_RATIO, PASSIVE_EVENT_LISTENERS} from './has.js';
 import {TRUE} from './functions/TRUE.js';
-import {
-  apply as applyTransform,
-  create as createTransform,
-} from './transform.js';
+import {create as createTransform} from './transform/create.js'
+import {apply as applyTransform} from './transform/apply.js'
 import {assert} from './asserts.js';
 import {clone} from './extent/clone.js';
 import {getForViewAndSize} from './extent/getForViewAndSize.js';

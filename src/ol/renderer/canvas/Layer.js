@@ -4,11 +4,9 @@
 import LayerRenderer from '../Layer.js';
 import RenderEvent from '../../render/Event.js';
 import RenderEventType from '../../render/EventType.js';
-import {
-  apply as applyTransform,
-  compose as composeTransform,
-  create as createTransform,
-} from '../../transform.js';
+import {create as createTransform} from '../../transform/create.js';
+import {apply as applyTransform} from '../../transform/apply.js';
+import {compose as composeTransform} from '../../transform/compose.js';
 import {asArray} from '../../color.js';
 import {createCanvasContext2D} from '../../dom.js';
 import {equals} from '../../array/equals.js';

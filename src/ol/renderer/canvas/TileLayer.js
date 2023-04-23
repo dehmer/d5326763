@@ -6,12 +6,10 @@ import ImageTile from '../../ImageTile.js';
 import ReprojTile from '../../reproj/Tile.js';
 import TileRange from '../../TileRange.js';
 import TileState from '../../TileState.js';
-import {
-  apply as applyTransform,
-  compose as composeTransform,
-  makeInverse,
-  toString as toTransformString,
-} from '../../transform.js';
+import {apply as applyTransform} from '../../transform/apply.js';
+import {compose as composeTransform} from '../../transform/compose.js';
+import {makeInverse} from '../../transform/makeInverse.js';
+import {toString as toTransformString} from '../../transform/toString.js';
 import {ascending} from '../../array/ascending.js';
 import {containsCoordinate} from '../../extent/containsCoordinate.js';
 import {createEmpty} from '../../extent/createEmpty.js';
