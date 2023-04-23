@@ -1,7 +1,7 @@
 <script>
   import Map from './ol/Map'
   import View from './ol/View'
-  import OSM from './ol/source/OSM'
+  import XYZ from './ol/source/XYZ'
   import TileLayer from './ol/layer/Tile'
   import { defaults as defaultInteractions } from './ol/interaction/defaults'
 
@@ -14,10 +14,10 @@
     const view = new View(defaultViewport)
     const controls = []
     const interactions = defaultInteractions({ onFocusOnly: true })
-
+    const osm = new XYZ({ url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'})
     const layers = [
-        new TileLayer({ source: new OSM() })
-      ]
+        new TileLayer({ source: osm })
+    ]
 
     let map = new Map({
       target,
