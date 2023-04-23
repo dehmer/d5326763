@@ -2,7 +2,7 @@
  * @module ol/functions
  */
 
-import {equals as arrayEquals} from './array.js';
+import {equals as arrayEquals} from './array/equals.js';
 
 /**
  * Always returns true.

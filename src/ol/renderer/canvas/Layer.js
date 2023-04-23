@@ -11,7 +11,7 @@ import {
 } from '../../transform.js';
 import {asArray} from '../../color.js';
 import {createCanvasContext2D} from '../../dom.js';
-import {equals} from '../../array.js';
+import {equals} from '../../array/equals.js';
 import {
   getBottomLeft,
   getBottomRight,

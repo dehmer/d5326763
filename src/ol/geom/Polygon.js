@@ -7,7 +7,7 @@ import SimpleGeometry from './SimpleGeometry.js';
 import {arrayMaxSquaredDelta, assignClosestArrayPoint} from './flat/closest.js';
 import {closestSquaredDistanceXY, getCenter} from '../extent.js';
 import {deflateCoordinatesArray} from './flat/deflate.js';
-import {extend} from '../array.js';
+import {extend} from '../array/extend.js';
 import {getInteriorPointOfArray} from './flat/interiorpoint.js';
 import {inflateCoordinatesArray} from './flat/inflate.js';
 import {intersectsLinearRingArray} from './flat/intersectsextent.js';

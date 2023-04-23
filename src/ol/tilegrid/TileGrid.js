@@ -12,7 +12,8 @@ import {clamp} from '../math/clamp.js';
 import {createOrUpdate, getTopLeft} from '../extent.js';
 import {createOrUpdate as createOrUpdateTileCoord} from '../tilecoord.js';
 import {intersectsLinearRing} from '../geom/flat/intersectsextent.js';
-import {isSorted, linearFindNearest} from '../array.js';
+import {isSorted} from '../array/isSorted.js';
+import {linearFindNearest} from '../array/linearFindNearest.js';
 import {toSize} from '../size.js';
 
 /**

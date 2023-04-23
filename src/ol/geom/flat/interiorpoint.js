@@ -1,7 +1,7 @@
 /**
  * @module ol/geom/flat/interiorpoint
  */
-import {ascending} from '../../array.js';
+import {ascending} from '../../array/ascending.js';
 import {linearRingsContainsXY} from './contains.js';
 
 /**

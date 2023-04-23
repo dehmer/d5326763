@@ -34,7 +34,7 @@ import {
   getForViewAndSize,
   isEmpty,
 } from './extent.js';
-import {equals} from './array.js';
+import {equals} from './array/equals.js';
 import {fromUserCoordinate, toUserCoordinate} from './proj.js';
 import {getUid} from './util.js';
 import {hasArea} from './size.js';

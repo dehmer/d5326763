@@ -12,7 +12,7 @@ import {
   makeInverse,
   toString as toTransformString,
 } from '../../transform.js';
-import {ascending} from '../../array.js';
+import {ascending} from '../../array/ascending.js';
 import {
   containsCoordinate,
   createEmpty,

@@ -3,7 +3,7 @@
  */
 import {clamp} from './math/clamp.js';
 import {getHeight, getWidth} from './extent.js';
-import {linearFindNearest} from './array.js';
+import {linearFindNearest} from './array/linearFindNearest.js';
 
 /**
  * @typedef {function((number|undefined), number, import("./size.js").Size, boolean=): (number|undefined)} Type

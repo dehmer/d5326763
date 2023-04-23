@@ -45,7 +45,7 @@ import {
   getWidth,
   isEmpty,
 } from './extent.js';
-import {linearFindNearest} from './array.js';
+import {linearFindNearest} from './array/linearFindNearest.js';
 import {fromExtent as polygonFromExtent} from './geom/Polygon.js';
 
 /**
