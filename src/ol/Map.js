@@ -21,7 +21,7 @@ import TileQueue, {getTilePriority} from './TileQueue.js';
 import View from './View.js';
 import ViewHint from './ViewHint.js';
 import {DEVICE_PIXEL_RATIO, PASSIVE_EVENT_LISTENERS} from './has.js';
-import {TRUE} from './functions.js';
+import {TRUE} from './functions/TRUE.js';
 import {
   apply as applyTransform,
   create as createTransform,

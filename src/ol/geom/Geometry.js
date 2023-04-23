@@ -14,7 +14,7 @@ import {
   returnOrUpdate,
 } from '../extent.js';
 import {get as getProjection, getTransform} from '../proj.js';
-import {memoizeOne} from '../functions.js';
+import {memoizeOne} from '../functions/memoizeOne.js';
 import {transform2D} from './flat/transform.js';
 
 /**

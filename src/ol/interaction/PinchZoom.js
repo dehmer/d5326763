@@ -4,7 +4,7 @@
 import PointerInteraction, {
   centroid as centroidFromPointers,
 } from './Pointer.js';
-import {FALSE} from '../functions.js';
+import {FALSE} from '../functions/FALSE.js';
 
 /**
  * @typedef {Object} Options

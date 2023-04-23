@@ -2,7 +2,8 @@
  * @module ol/events/condition
  */
 import MapBrowserEventType from '../MapBrowserEventType.js';
-import {FALSE, TRUE} from '../functions.js';
+import {FALSE} from '../functions/FALSE.js';
+import {TRUE} from '../functions/TRUE.js';
 import {MAC, WEBKIT} from '../has.js';
 import {assert} from '../asserts.js';
 

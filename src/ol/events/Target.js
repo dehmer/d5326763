@@ -3,7 +3,7 @@
  */
 import Disposable from '../Disposable.js';
 import Event from './Event.js';
-import {VOID} from '../functions.js';
+import {VOID} from '../functions/VOID.js';
 import {clear} from '../obj.js';
 
 /**

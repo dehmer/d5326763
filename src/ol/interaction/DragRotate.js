@@ -2,7 +2,7 @@
  * @module ol/interaction/DragRotate
  */
 import PointerInteraction from './Pointer.js';
-import {FALSE} from '../functions.js';
+import {FALSE} from '../functions/FALSE.js';
 import {
   altShiftKeysOnly,
   mouseActionButton,

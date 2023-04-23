@@ -15,7 +15,7 @@ import {
   toUserCoordinate,
   toUserExtent,
 } from './proj.js';
-import {VOID} from './functions.js';
+import {VOID} from './functions/VOID.js';
 import {
   add as addCoordinate,
   equals as coordinatesEqual,
