@@ -38,118 +38,6 @@ import {listen, unlistenByKey} from './events.js';
 import {removeNode} from './dom.js';
 import {warn} from './console.js';
 
-/**
- * State of the current frame. Only `pixelRatio`, `time` and `viewState` should
- * be used in applications.
- * @typedef {Object} FrameState
- * @property {number} pixelRatio The pixel ratio of the frame.
- * @property {number} time The time when rendering of the frame was requested.
- * @property {import("./View.js").State} viewState The state of the current view.
- * @property {boolean} animate Animate.
- * @property {import("./transform.js").Transform} coordinateToPixelTransform CoordinateToPixelTransform.
- * @property {import("rbush").default} declutterTree DeclutterTree.
- * @property {null|import("./extent.js").Extent} extent Extent.
- * @property {import("./extent.js").Extent} [nextExtent] Next extent during an animation series.
- * @property {number} index Index.
- * @property {Array<import("./layer/Layer.js").State>} layerStatesArray LayerStatesArray.
- * @property {number} layerIndex LayerIndex.
- * @property {import("./transform.js").Transform} pixelToCoordinateTransform PixelToCoordinateTransform.
- * @property {Array<PostRenderFunction>} postRenderFunctions PostRenderFunctions.
- * @property {import("./size.js").Size} size Size.
- * @property {TileQueue} tileQueue TileQueue.
- * @property {!Object<string, Object<string, boolean>>} usedTiles UsedTiles.
- * @property {Array<number>} viewHints ViewHints.
- * @property {!Object<string, Object<string, boolean>>} wantedTiles WantedTiles.
- * @property {string} mapId The id of the map.
- * @property {Object<string, boolean>} renderTargets Identifiers of previously rendered elements.
- */
-
-/**
- * @typedef {function(Map, ?FrameState): any} PostRenderFunction
- */
-
-/**
- * @typedef {Object} AtPixelOptions
- * @property {undefined|function(import("./layer/Layer.js").default<import("./source/Source").default>): boolean} [layerFilter] Layer filter
- * function. The filter function will receive one argument, the
- * {@link module:ol/layer/Layer~Layer layer-candidate} and it should return a boolean value.
- * Only layers which are visible and for which this function returns `true`
- * will be tested for features. By default, all visible layers will be tested.
- * @property {number} [hitTolerance=0] Hit-detection tolerance in css pixels. Pixels
- * inside the radius around the given position will be checked for features.
- * @property {boolean} [checkWrapped=true] Check-Wrapped Will check for wrapped geometries inside the range of
- *   +/- 1 world width. Works only if a projection is used that can be wrapped.
- */
-
-/**
- * @typedef {Object} MapOptionsInternal
- * @property {Collection<import("./control/Control.js").default>} [controls] Controls.
- * @property {Collection<import("./interaction/Interaction.js").default>} [interactions] Interactions.
- * @property {HTMLElement|Document} keyboardEventTarget KeyboardEventTarget.
- * @property {Collection<import("./Overlay.js").default>} overlays Overlays.
- * @property {Object<string, *>} values Values.
- */
-
-/**
- * @typedef {import("./ObjectEventType").Types|'change:layergroup'|'change:size'|'change:target'|'change:view'} MapObjectEventTypes
- */
-
-/***
- * @template Return
- * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
- *    import("./Observable").OnSignature<MapObjectEventTypes, import("./Object").ObjectEvent, Return> &
- *    import("./Observable").OnSignature<import("./MapBrowserEventType").Types, import("./MapBrowserEvent").default, Return> &
- *    import("./Observable").OnSignature<import("./MapEventType").Types, import("./MapEvent").default, Return> &
- *    import("./Observable").OnSignature<import("./render/EventType").MapRenderEventTypes, import("./render/Event").default, Return> &
- *    import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|MapObjectEventTypes|
- *      import("./MapBrowserEventType").Types|import("./MapEventType").Types|
- *      import("./render/EventType").MapRenderEventTypes, Return>} MapEventHandler
- */
-
-/**
- * Object literal with config options for the map.
- * @typedef {Object} MapOptions
- * @property {Collection<import("./control/Control.js").default>|Array<import("./control/Control.js").default>} [controls]
- * Controls initially added to the map. If not specified,
- * {@link module:ol/control/defaults.defaults} is used.
- * @property {number} [pixelRatio=window.devicePixelRatio] The ratio between
- * physical pixels and device-independent pixels (dips) on the device.
- * @property {Collection<import("./interaction/Interaction.js").default>|Array<import("./interaction/Interaction.js").default>} [interactions]
- * Interactions that are initially added to the map. If not specified,
- * {@link module:ol/interaction/defaults.defaults} is used.
- * @property {HTMLElement|Document|string} [keyboardEventTarget] The element to
- * listen to keyboard events on. This determines when the `KeyboardPan` and
- * `KeyboardZoom` interactions trigger. For example, if this option is set to
- * `document` the keyboard interactions will always trigger. If this option is
- * not specified, the element the library listens to keyboard events on is the
- * map target (i.e. the user-provided div for the map). If this is not
- * `document`, the target element needs to be focused for key events to be
- * emitted, requiring that the target element has a `tabindex` attribute.
- * @property {Array<import("./layer/Base.js").default>|Collection<import("./layer/Base.js").default>|LayerGroup} [layers]
- * Layers. If this is not defined, a map with no layers will be rendered. Note
- * that layers are rendered in the order supplied, so if you want, for example,
- * a vector layer to appear on top of a tile layer, it must come after the tile
- * layer.
- * @property {number} [maxTilesLoading=16] Maximum number tiles to load
- * simultaneously.
- * @property {number} [moveTolerance=1] The minimum distance in pixels the
- * cursor must move to be detected as a map move event instead of a click.
- * Increasing this value can make it easier to click on the map.
- * @property {Collection<import("./Overlay.js").default>|Array<import("./Overlay.js").default>} [overlays]
- * Overlays initially added to the map. By default, no overlays are added.
- * @property {HTMLElement|string} [target] The container for the map, either the
- * element itself or the `id` of the element. If not specified at construction
- * time, {@link module:ol/Map~Map#setTarget} must be called for the map to be
- * rendered. If passed by element, the container can be in a secondary document.
- * **Note:** CSS `transform` support for the target element is limited to `scale`.
- * @property {View|Promise<import("./View.js").ViewOptions>} [view] The map's view.  No layer sources will be
- * fetched unless this is specified at construction time or through
- * {@link module:ol/Map~Map#setView}.
- */
-
-/**
- * @param {import("./layer/Base.js").default} layer Layer.
- */
 function removeLayerMapProperty(layer) {
   if (layer instanceof Layer) {
     layer.setMapInternal(null);
@@ -160,10 +48,6 @@ function removeLayerMapProperty(layer) {
   }
 }
 
-/**
- * @param {import("./layer/Base.js").default} layer Layer.
- * @param {Map} map Map.
- */
 function setLayerMapProperty(layer, map) {
   if (layer instanceof Layer) {
     layer.setMapInternal(map);
@@ -178,56 +62,38 @@ function setLayerMapProperty(layer, map) {
 }
 
 /**
- * @classdesc
- * The map is the core component of OpenLayers. For a map to render, a view,
- * one or more layers, and a target container are needed:
- *
- *     import Map from 'ol/Map.js';
- *     import View from 'ol/View.js';
- *     import TileLayer from 'ol/layer/Tile.js';
- *     import OSM from 'ol/source/OSM.js';
- *
- *     const map = new Map({
- *       view: new View({
- *         center: [0, 0],
- *         zoom: 1,
- *       }),
- *       layers: [
- *         new TileLayer({
- *           source: new OSM(),
- *         }),
- *       ],
- *       target: 'map',
- *     });
- *
- * The above snippet creates a map using a {@link module:ol/layer/Tile~TileLayer} to
- * display {@link module:ol/source/OSM~OSM} OSM data and render it to a DOM
- * element with the id `map`.
- *
- * The constructor places a viewport container (with CSS class name
- * `ol-viewport`) in the target element (see `getViewport()`), and then two
- * further elements within the viewport: one with CSS class name
- * `ol-overlaycontainer-stopevent` for controls and some overlays, and one with
- * CSS class name `ol-overlaycontainer` for other overlays (see the `stopEvent`
- * option of {@link module:ol/Overlay~Overlay} for the difference). The map
- * itself is placed in a further element within the viewport.
- *
- * Layers are stored as a {@link module:ol/Collection~Collection} in
- * layerGroups. A top-level group is provided by the library. This is what is
- * accessed by `getLayerGroup` and `setLayerGroup`. Layers entered in the
- * options are added to this group, and `addLayer` and `removeLayer` change the
- * layer collection in the group. `getLayers` is a convenience function for
- * `getLayerGroup().getLayers()`. Note that {@link module:ol/layer/Group~LayerGroup}
- * is a subclass of {@link module:ol/layer/Base~BaseLayer}, so layers entered in the
- * options or added with `addLayer` can be groups, which can contain further
- * groups, and so on.
- *
- * @fires import("./MapBrowserEvent.js").MapBrowserEvent
- * @fires import("./MapEvent.js").MapEvent
- * @fires import("./render/Event.js").default#precompose
- * @fires import("./render/Event.js").default#postcompose
- * @fires import("./render/Event.js").default#rendercomplete
- * @api
+ * renderComplete_ :: boolean [R/W]; handlePostRender(), renderFrame_()
+ * loaded_ :: boolean [R/W]; handlePostRender
+ * boundHandleBrowserEvent_ :: UIEvent -> string -> unit [W/O]; handleTargetChanged_()
+ * maxTilesLoading_ :: number [W/O]; handlePostRender()
+ * pixelRatio_ :: number [W/O]; renderFrame_()
+ * postRenderTimeoutHandle_ :: timeoutID [R/W]; handleTargetChanged_(), renderFrame_()
+ * animationDelayKey_ :: number [R/W]; handleTargetChanged_(), animationDelay_(), renderSync(), render()
+ * animationDelay_ :: () -> unit [W/O]; renderSync(), render()
+ * coordinateToPixelTransform_ :: Transform [W/O]; renderFrame_()
+ * pixelToCoordinateTransform_ :: Transform [W/O]; renderFrame_()
+ * frameIndex_ :: number [R/W]; renderFrame_()
+ * frameState_ :: FrameState [R/W]; forEachFeatureAtPixel(), hasFeatureAtPixel(); getCoordinateFromPixelInternal(); getPixelFromCoordinateInternal(), getTilePriority(), handleMapBrowserEvent(), handlePostRender(), isRendered(), renderFrame_()
+ * previousExtent_ :: Extent [R/W]; renderFrame_()
+ * viewPropertyListenerKey_ :: EventsKey [R/W]; handleViewChanged_()
+ * viewChangeListenerKey_ :: EventsKey [R/W]; handleViewChanged_()
+ * layerGroupPropertyListenerKeys_ :: EventsKey [R/W]; handleLayerGroupChanged_()
+ * viewport_ :: HTMLElement [W/O]; getEventPixel(), getViewport(), handleMapBrowserEvent(), handleTargetChanged_(), updateViewportSize_()
+ * overlayContainer_ :: HTMLElement [W/O]; getOverlayContainer(), 
+ * overlayContainerStopEvent_ :: HTMLElement [W/O]; getOverlayContainerStopEvent(), handleMapBrowserEvent()
+ * mapBrowserEventHandler_ :: MapBrowserEventHandler [R/W]; handleTargetChanged_(), 
+ * moveTolerance_ :: number [W/O]; handleTargetChanged_()
+ * keyboardEventTarget_ :: HTMLElement [W/O]; handleTargetChanged_()
+ * targetChangeHandlerKeys_ :: EventsKey [R/W]; handleTargetChanged_()
+ * targetElement_ :: HTMLElement [R/W]; getTargetElement(), handleTargetChanged_()
+ * resizeObserver_ :: ResizeObserver [W/O]; disposeInternal(), handleTargetChanged_()
+ * controls :: Collection [W/O]; disposeInternal(), getControls()
+ * interactions :: Collection [W/O]; disposeInternal(), getInteractions()
+ * overlays_ :: Collection [W/O]; disposeInternal(); getOverlays()
+ * overlayIdIndex_ :: {string: Overlay} [W/O]; addOverlayInternal_(); getOverlayById()
+ * renderer_ :: renderer/Map [R/W]; forEachFeatureAtPixel(), hasFeatureAtPixel(), getRenderer(), handlePostRender(), handleTargetChanged_(), render(), renderFrame_()
+ * postRenderFunctions_ :: [PostRenderFunction] [W/O]; handlePostRender(), handleTargetChanged_(), renderFrame_()
+ * tileQueue_ :: TileQueue [W/O]; handlePostRender(); renderFrame_
  */
 class Map extends BaseObject {
   /**
@@ -237,22 +103,6 @@ class Map extends BaseObject {
     super();
 
     options = options || {};
-
-    /***
-     * @type {MapEventHandler<import("./events").EventsKey>}
-     */
-    this.on;
-
-    /***
-     * @type {MapEventHandler<import("./events").EventsKey>}
-     */
-    this.once;
-
-    /***
-     * @type {MapEventHandler<void>}
-     */
-    this.un;
-
     const optionsInternal = createOptionsInternal(options);
 
     /**
@@ -1282,9 +1132,12 @@ class Map extends BaseObject {
         this,
         this.moveTolerance_
       );
+
+      // Register handler for derrived, i.e. OL events:
       for (const key in MapBrowserEventType) {
         this.mapBrowserEventHandler_.addEventListener(
           MapBrowserEventType[key],
+          // FIXME: this.boundHandleBrowserEvent_
           this.handleMapBrowserEvent.bind(this)
         );
       }
@@ -1299,6 +1152,8 @@ class Map extends BaseObject {
         PASSIVE_EVENT_LISTENERS ? {passive: false} : false
       );
 
+      // handleBrowserEvent eventually forwards wrapped DOM event
+      // to handleMapBrowserEvent.
       const keyboardEventTarget = !this.keyboardEventTarget_
         ? targetElement
         : this.keyboardEventTarget_;
