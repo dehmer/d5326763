@@ -5,6 +5,7 @@ import CollectionEventType from './CollectionEventType.js';
 import CompositeMapRenderer from './renderer/Composite.js';
 import EventType from './events/EventType.js';
 import Layer from './layer/Layer.js';
+import {GroupEvent as XYZ} from './layer/Group.js';
 import LayerGroup, {GroupEvent} from './layer/Group.js';
 import MapBrowserEvent from './MapBrowserEvent.js';
 import MapBrowserEventHandler from './MapBrowserEventHandler.js';
