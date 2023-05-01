@@ -12,7 +12,6 @@ const depth = x =>
   const makeRelations = () => {
     const actual = []
     const relations = relations => {  
-      console.log('relations', relations)
       depth(relations) === 1
         ? actual.push(relations)
         : actual.push(...relations)
@@ -35,7 +34,7 @@ describe('ImportDeclaration', function () {
   })
 })
 
-describe.only('ExportDeclaration', function() {
+describe('ExportDeclaration', function() {
   require('./traverse.test.export.js').forEach(({ source, expected }) => {
     it(source, function () {
       const { relations, actual } = makeRelations()

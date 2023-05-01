@@ -24,14 +24,8 @@ const declaration = x => R.cond([
   [R.has('declarations'), R.compose(R.chain(declaration), R.prop('declarations'))],
   [R.has('id'), R.compose(declaration, R.prop('id'))],
   [R.has('name'), R.compose(R.of(Array), R.prop('name'))],
+  [R.T, R.always([])]
 ])(x)
-
-// const declaration = R.cond([
-//   [R.compose(typeEq('Identifier'), R.prop('declaration')), R.path(['declaration', 'name'])],
-//   [R.compose(typeEq('FunctionDeclaration'), R.prop('declaration')), R.path(['declaration', 'id', 'name'])],
-//   [R.compose(typeEq('ClassDeclaration'), R.prop('declaration')), R.path(['declaration', 'id', 'name'])],
-//   [R.compose(typeEq('FunctionDeclaration'), R.prop('declaration')), R.path(['declaration', 'id', 'name'])]
-// ])
 
 // imported :: ImportSpecifier -> String
 const imported = R.cond([
@@ -46,25 +40,17 @@ const exported = R.cond([
   [R.compose(typeEq('StringLiteral'), R.prop('exported')), R.path(['exported', 'value'])]
 ])
 
+const declarations = node => R.compose(
+  R.map(name => [node.type, name]),
+  declaration
+)(node)
 
 
 const visitor = {}
 
 // ExportDeclaration
-visitor.ExportNamedDeclaration = ({ node }, state) => {
-  const names = R.compose(
-    R.reject(R.isNil),
-    declaration
-  )(node)
-
-  if (names) state(names.map(name => [node.type, name]))
-}
-
-visitor.ExportDefaultDeclaration = ({ node }, state) => {
-  const names = declaration(node)
-  if (names) state([node.type, ...names])
-  
-}
+visitor.ExportNamedDeclaration = ({ node }, state) => state(declarations(node))
+visitor.ExportDefaultDeclaration = ({ node }, state) => state(declarations(node))  
 visitor.ExportAllDeclaration = ({ node }, state) => state([node.type, source(node)])
 visitor.ExportSpecifier = ({ node, parent }, state) => state([node.type, source(parent), exported(node), local(node)])
 visitor.ExportNamespaceSpecifier = ({ node, parent }, state) => state([node.type, source(parent), exported(node)])
