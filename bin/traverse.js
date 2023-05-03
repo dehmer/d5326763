@@ -6,6 +6,47 @@ const traverse = R.curry((relations, ast) => {
   return relations
 })
 
+const depth = x => 
+  (Array.isArray(x) && x.length) 
+    ? 1 + depth(x[0])
+    : 0
+
+// const relations = ({ filename, ast }) => {
+//   const scope = null
+//   const acc = []
+//   const state = relations => {  
+//     depth(relations) === 1
+//       ? acc.push(relations)
+//       : acc.push(...relations)
+//   } 
+
+//   require('@babel/traverse').default(ast, visitor, scope, state)
+//   return [filename, acc]
+// }
+
+const relations = ({ filename, ast }) => {
+  const scope = null
+  const state = State(filename)
+  require('@babel/traverse').default(ast, visitor, scope, state)
+  return [filename, state.acc()]
+}
+  
+const State = path => {
+  let path_ = path
+  const acc_ = []
+
+  const push = relations => {
+    depth(relations) === 1
+      ? acc_.push(relations)
+      : acc_.push(...relations)
+  }
+
+  return {
+    push,
+    acc: () => acc_
+  }
+}
+
 const typeEq = name => R.propEq(name, 'type')
 
 // source :: ImportDeclaration => String
@@ -49,15 +90,18 @@ const declarations = node => R.compose(
 const visitor = {}
 
 // ExportDeclaration
-visitor.ExportNamedDeclaration = ({ node }, state) => state(declarations(node))
-visitor.ExportDefaultDeclaration = ({ node }, state) => state(declarations(node))  
-visitor.ExportAllDeclaration = ({ node }, state) => state([node.type, source(node)])
-visitor.ExportSpecifier = ({ node, parent }, state) => state([node.type, source(parent), exported(node), local(node)])
-visitor.ExportNamespaceSpecifier = ({ node, parent }, state) => state([node.type, source(parent), exported(node)])
+visitor.ExportNamedDeclaration = ({ node }, { push }) => push(declarations(node))
+// visitor.ExportDefaultDeclaration = ({ node }, state) => state(declarations(node))  
+// visitor.ExportAllDeclaration = ({ node }, state) => state([node.type, source(node)])
+// visitor.ExportSpecifier = ({ node, parent }, state) => state([node.type, source(parent), exported(node), local(node)])
+// visitor.ExportNamespaceSpecifier = ({ node, parent }, state) => state([node.type, source(parent), exported(node)])
 
-// ImportDeclaration
-visitor.ImportDefaultSpecifier = ({ node, parent }, state) => state([node.type, source(parent), local(node)])
-visitor.ImportNamespaceSpecifier = ({ node, parent }, state) => state([node.type, source(parent), local(node)])
-visitor.ImportSpecifier = ({ node, parent }, state) => state([node.type, source(parent), imported(node), local(node)])
+// // ImportDeclaration
+// visitor.ImportDefaultSpecifier = ({ node, parent }, state) => state([node.type, source(parent), local(node)])
+// visitor.ImportNamespaceSpecifier = ({ node, parent }, state) => state([node.type, source(parent), local(node)])
+// visitor.ImportSpecifier = ({ node, parent }, state) => state([node.type, source(parent), imported(node), local(node)])
 
-module.exports = traverse
+module.exports = {
+  traverse,
+  relations
+}

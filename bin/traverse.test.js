@@ -1,27 +1,28 @@
 const assert = require('assert')
 const parser = require('@babel/parser')
-const traverse = require('./traverse')
+const { traverse } = require('./traverse')
+const makeRelations = require('./makeRelations')
 
 const parse = script => parser.parse(script, { sourceType: 'module' })
 
-const depth = x => 
-  (Array.isArray(x) && x.length) 
-    ? 1 + depth(x[0])
-    : 0
+// const depth = x => 
+//   (Array.isArray(x) && x.length) 
+//     ? 1 + depth(x[0])
+//     : 0
 
-  const makeRelations = () => {
-    const actual = []
-    const relations = relations => {  
-      depth(relations) === 1
-        ? actual.push(relations)
-        : actual.push(...relations)
-    } 
+// const makeRelations = () => {
+//   const actual = []
+//   const relations = relations => {  
+//     depth(relations) === 1
+//       ? actual.push(relations)
+//       : actual.push(...relations)
+//   } 
 
-    return {
-      relations,
-      actual: () => actual
-    }
-  }
+//   return {
+//     relations,
+//     actual: () => actual
+//   }
+// }
 
 describe('ImportDeclaration', function () {
   require('./traverse.test.import.js').forEach(({ source, expected }) => {
