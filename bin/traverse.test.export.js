@@ -9,126 +9,240 @@ module.exports = [
   {
     source: 'export let name1, name2/*, … */; // also var',
     expected: [
-      ['ExportNamedDeclaration', 'name1'],
-      ['ExportNamedDeclaration', 'name2'],
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: [ 'name1', 'name2' ]
+      }
     ]
-  }, 
+
+  },
   {
     source: 'export const name1 = 1, name2 = 2/*, … */; // also var, let',
     expected: [
-      ['ExportNamedDeclaration', 'name1'],
-      ['ExportNamedDeclaration', 'name2']
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: [ 'name1', 'name2' ]
+      }
     ]
-  }, 
+  },
   {
     source: 'export function functionName() { /* … */ }',
-    expected: [['ExportNamedDeclaration', 'functionName']]
-  }, 
+    expected: [
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: [ 'functionName' ]
+      }
+    ]
+  },
   {
     source: 'export class ClassName { /* … */ }',
-    expected: [['ExportNamedDeclaration', 'ClassName']]
-  }, 
+    expected: [
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: [ 'ClassName' ]
+      }
+    ]
+  },
   {
     source: 'export function* generatorFunctionName() { /* … */ }',
-    expected: [['ExportNamedDeclaration', 'generatorFunctionName']]
-  }, 
+    expected: [
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: [ 'generatorFunctionName' ]
+      }
+    ]
+  },
   {
     source: 'export const { name1, name2: bar } = o;',
-    expected: []
-  }, 
+    expected: [
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: []
+      }
+    ]
+  },
   {
     source: 'export const [ name1, name2 ] = array;',
-    expected: []
-  }, 
+    expected: [
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: []
+      }
+    ]
+  },
 
   // Export list
 
   {
     source: 'let name1, nameN; export { name1, /* …, */ nameN };',
     expected: [
-      ['ExportSpecifier', undefined, 'name1', 'name1'],
-      ['ExportSpecifier', undefined, 'nameN', 'nameN']
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      { type: 'ExportSpecifier', exported: 'name1', local: 'name1' },
+      { type: 'ExportSpecifier', exported: 'nameN', local: 'nameN' }
     ]
-  }, 
+  },
   {
     source: 'let variable1, variable2, nameN; export { variable1 as name1, variable2 as name2, /* …, */ nameN };',
     expected: [
-      ['ExportSpecifier', undefined, 'name1', 'variable1'],
-      ['ExportSpecifier', undefined, 'name2', 'variable2'],
-      ['ExportSpecifier', undefined, 'nameN', 'nameN']
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      { type: 'ExportSpecifier', exported: 'name1', local: 'variable1' },
+      { type: 'ExportSpecifier', exported: 'name2', local: 'variable2' },
+      { type: 'ExportSpecifier', exported: 'nameN', local: 'nameN' }
     ]
-  }, 
+  },
   {
     source: 'let variable1; export { variable1 as "string name" };',
-    expected: [['ExportSpecifier', undefined, 'string name', 'variable1']]
-  }, 
+    expected: [
+      {
+        type: 'ExportNamedDeclaration',
+        declaration: []
+      },
+      {
+        type: 'ExportSpecifier',
+        exported: 'string name',
+        local: 'variable1'
+      }
+    ]
+  },
   {
     source: 'let name1; export { name1 as default /*, … */ };',
-    expected: [['ExportSpecifier', undefined, 'default', 'name1']]
-  }, 
+    expected: [
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      { type: 'ExportSpecifier', exported: 'default', local: 'name1' }
+    ]
+  },
 
   // Default exports
 
   {
     source: 'export default expression;',
-    expected: [['ExportDefaultDeclaration', 'expression']]
-  }, 
+    expected: [
+      { type: 'ExportDefaultDeclaration', declaration: [ 'expression' ] }
+    ]
+  },
   {
     source: 'export default function functionName() { /* … */ }',
-    expected: [['ExportDefaultDeclaration', 'functionName']]
-  }, 
+    expected: [
+      { type: 'ExportDefaultDeclaration', declaration: [ 'functionName' ] }
+    ]
+  },
   {
     source: 'export default class ClassName { /* … */ }',
-    expected: [['ExportDefaultDeclaration', 'ClassName']]
-  }, 
+    expected:  [
+      { type: 'ExportDefaultDeclaration', declaration: [ 'ClassName' ] }
+    ]
+  },
   {
     source: 'export default function* generatorFunctionName() { /* … */ }',
-    expected: [['ExportDefaultDeclaration', 'generatorFunctionName']]
-  }, 
+    expected: [
+      {
+        type: 'ExportDefaultDeclaration',
+        declaration: [ 'generatorFunctionName' ]
+      }
+    ]
+  },
   {
     source: 'export default function () { /* … */ }',
-    expected: []
-  }, 
+    expected: [
+      { type: 'ExportDefaultDeclaration', declaration: [] }
+    ]
+  },
   {
     source: 'export default class { /* … */ }',
-    expected: []
-  }, 
+    expected: [
+      { type: 'ExportDefaultDeclaration', declaration: [] }
+    ]
+  },
   {
     source: 'export default function* () { /* … */ }',
-    expected: []
-  }, 
+    expected: [
+      { type: 'ExportDefaultDeclaration', declaration: [] }
+    ]
+  },
 
   // Aggregating modules
 
   {
     source: 'export * from "module-name";',
-    expected: [['ExportAllDeclaration', 'module-name']]
-  }, 
+    expected: [
+      { type: 'ExportAllDeclaration', source: 'module-name' }
+    ]
+  },
   {
     source: 'export * as name1 from "module-name";',
-    expected: [['ExportNamespaceSpecifier', 'module-name', 'name1']]
-  }, 
+    expected: [
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      {
+        type: 'ExportNamespaceSpecifier',
+        source: 'module-name',
+        exported: 'name1'
+      }
+    ]
+  },
   {
     source: 'export { name1, /* …, */ nameN } from "module-name";',
     expected: [
-      ['ExportSpecifier', 'module-name', 'name1', 'name1'],
-      ['ExportSpecifier', 'module-name', 'nameN', 'nameN']
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      {
+        type: 'ExportSpecifier',
+        source: 'module-name',
+        exported: 'name1',
+        local: 'name1'
+      },
+      {
+        type: 'ExportSpecifier',
+        source: 'module-name',
+        exported: 'nameN',
+        local: 'nameN'
+      }
     ]
-  }, 
+  },
   {
     source: 'export { import1 as name1, import2 as name2, /* …, */ nameN } from "module-name";',
     expected: [
-      ['ExportSpecifier', 'module-name', 'name1', 'import1'],
-      ['ExportSpecifier', 'module-name', 'name2', 'import2'],
-      ['ExportSpecifier', 'module-name', 'nameN', 'nameN']
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      {
+        type: 'ExportSpecifier',
+        source: 'module-name',
+        exported: 'name1',
+        local: 'import1'
+      },
+      {
+        type: 'ExportSpecifier',
+        source: 'module-name',
+        exported: 'name2',
+        local: 'import2'
+      },
+      {
+        type: 'ExportSpecifier',
+        source: 'module-name',
+        exported: 'nameN',
+        local: 'nameN'
+      }
     ]
-  }, 
+  },
   {
     source: 'export { default, /* …, */ } from "module-name";',
-    expected: [['ExportSpecifier', 'module-name', 'default', 'default']]
-  }, 
+    expected: [
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      {
+        type: 'ExportSpecifier',
+        source: 'module-name',
+        exported: 'default',
+        local: 'default'
+      }
+    ]
+  },
   {
     source: 'export { default as name1 } from "module-name";',
-    expected: [['ExportSpecifier', 'module-name', 'name1', 'default']]
+    expected: [
+      { type: 'ExportNamedDeclaration', declaration: [] },
+      {
+        type: 'ExportSpecifier',
+        source: 'module-name',
+        exported: 'name1',
+        local: 'default'
+      }
+    ]
   }
 ]

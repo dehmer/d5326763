@@ -5,56 +5,131 @@
 module.exports = [
   {
     source: 'import defaultExport from "module-name"',
-    expected: [['ImportDefaultSpecifier', 'module-name', 'defaultExport']]
+    expected: [
+      {
+        type: 'ImportDefaultSpecifier',
+        source: 'module-name',
+        local: 'defaultExport'
+      }
+    ]
   }, 
   {
     source: 'import * as name from "module-name"',
-    expected: [['ImportNamespaceSpecifier', 'module-name', 'name']]
+    expected: [
+      {
+        type: 'ImportNamespaceSpecifier',
+        source: 'module-name',
+        local: 'name'
+      }      
+    ]
   },
   {
     source: 'import { export1 } from "module-name"',
-    expected: [['ImportSpecifier', 'module-name', 'export1', 'export1']]
+    expected: [
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'export1',
+        local: 'export1'
+      }
+    ]
   },
   {
     source: 'import { export1 as alias1 } from "module-name"',
-    expected: [['ImportSpecifier', 'module-name', 'export1', 'alias1']]
+    expected: [
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'export1',
+        local: 'alias1'
+      }
+    ]
   },
   {
     source: 'import { default as alias } from "module-name"',
-    expected: [['ImportSpecifier', 'module-name', 'default', 'alias']]
+    expected: [
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'default',
+        local: 'alias'
+      }
+    ]
   },
   {
     source: 'import { export1, export2 } from "module-name"',
     expected: [
-      ['ImportSpecifier', 'module-name', 'export1', 'export1'],
-      ['ImportSpecifier', 'module-name', 'export2', 'export2']
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'export1',
+        local: 'export1'
+      },
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'export2',
+        local: 'export2'
+      }    
     ]
   },
   {
     source: 'import { export1, export2 as alias2, /* … */ } from "module-name"',
     expected: [
-      ['ImportSpecifier', 'module-name', 'export1', 'export1'],
-      ['ImportSpecifier', 'module-name', 'export2', 'alias2']
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'export1',
+        local: 'export1'
+      },
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'export2',
+        local: 'alias2'
+      }
     ]
   },
   {
     source: 'import { "string name" as alias } from "module-name"',
     expected: [
-      ['ImportSpecifier', 'module-name', 'string name', 'alias']
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'string name',
+        local: 'alias'
+      }    
     ]
   },
   {
     source: 'import defaultExport, { export1, /* … */ } from "module-name"',
     expected: [
-      ['ImportDefaultSpecifier', 'module-name', 'defaultExport'],
-      ['ImportSpecifier', 'module-name', 'export1', 'export1']
+      {
+        type: 'ImportDefaultSpecifier',
+        source: 'module-name',
+        local: 'defaultExport'
+      },
+      {
+        type: 'ImportSpecifier',
+        source: 'module-name',
+        imported: 'export1',
+        local: 'export1'
+      }
     ]
   },
   {
     source: 'import defaultExport, * as name from "module-name"',
     expected: [
-      ['ImportDefaultSpecifier', 'module-name', 'defaultExport'],
-      ['ImportNamespaceSpecifier', 'module-name', 'name']
+      {
+        type: 'ImportDefaultSpecifier',
+        source: 'module-name',
+        local: 'defaultExport'
+      },
+      {
+        type: 'ImportNamespaceSpecifier',
+        source: 'module-name',
+        local: 'name'
+      }
     ]
   },
   {

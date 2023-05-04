@@ -23,7 +23,7 @@
   "scripts": {
     "build": "cross-env NODE_ENV=production webpack",
     "serve": "webpack serve --static public",
-    "test": "mocha 'bin/**/*.test.js' --recursive"
+    "test": "mocha 'bin/**/*.test.js' --recursive --bail"
   },
   "dependencies": {
     "@babel/parser": "^7.21.4",
