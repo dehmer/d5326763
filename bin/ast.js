@@ -11,7 +11,7 @@ const parserOptions = filename => ({ sourceType: 'module', sourceFilename: filen
 const parseCode = file => parser.parse(file.source, parserOptions(file.filename))
 const script = file => parseCode(file)
 
-const moduleEntries = R.compose(
+const moduleRelations = R.compose(
   R.map(traverse),
   R.map(script),
   R.map(readFile),
@@ -20,6 +20,7 @@ const moduleEntries = R.compose(
   // R.filter(filename => filename === 'src/ol/style.js')
 )
 
-const relations = [].concat(...moduleEntries(filenames))
+const relations = [].concat(...moduleRelations(filenames))
+// console.log('ClassMethod', relations.filter(({ type }) => type === 'ClassMethod'))
 // console.log('relations', relations.length)
 console.log(JSON.stringify(relations, null, 2))

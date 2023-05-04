@@ -55,6 +55,21 @@ const exported = R.cond([
   [R.compose(typeEq('StringLiteral'), R.prop('exported')), R.path(['exported', 'value'])]
 ])
 
+// id :: ClassDeclaration -> String
+const id = R.path(['id', 'name'])
+
+// superClass :: ClassDeclaration -> String
+const superClass = R.path(['superClass', 'name'])
+
+// key :: ClassMethod -> String
+const key = R.path(['key', 'name'])
+
+// static :: ClassMethod -> Boolean
+const static = R.prop('static')
+
+// kind :: ClassMethod -> String
+const kind = R.prop('kind')
+
 const visitor = {}
 
 visitor.Program = ({ node }, state) => state({
@@ -116,5 +131,24 @@ visitor.ImportSpecifier = ({ node, parent }, state) => state({
   imported: imported(node),
   local: local(node)
 })
+
+visitor.ClassDeclaration = ({ node }, state) => state({
+  type: type(node),
+  filename: filename(node),
+  id: id(node),
+  superClass: superClass(node)
+})
+
+visitor.ClassMethod = ({ node }, state) => state({
+  type: type(node),
+  filename: filename(node),
+  key: key(node),
+  kind: kind(node),
+  static: static(node)  
+})
+
+// visitor.BlockStatement = ({ node, parent }, state) => {
+//   if (parent.type === 'ClassMethod') console.log('BlockStatement', node)
+// }
 
 module.exports = traverse
