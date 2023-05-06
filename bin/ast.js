@@ -15,7 +15,7 @@ const moduleRelations = R.compose(
   R.map(traverse),
   R.map(script),
   R.map(readFile),
-  // R.filter(filename => filename === 'src/ol/Map.js')
+  R.filter(filename => filename === 'src/ol/Map.js')
   // R.filter(filename => filename === 'src/ol/xml.js')
   // R.filter(filename => filename === 'src/ol/style.js')
 )

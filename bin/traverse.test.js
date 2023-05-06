@@ -1,11 +1,11 @@
 const assert = require('assert')
+const fs = require('fs')
 const parser = require('@babel/parser')
 const R = require('ramda')
 
 const parse = script => parser.parse(script, { sourceType: 'module' })
 
-const traverse = ast => {
-  const excludes = ['Program']
+const traverse = (ast, excludes = ['Program']) => {
   const relations = require('./traverse')(ast, excludes)
   return R.map(R.reject(R.isNil), relations)
 }
@@ -20,7 +20,7 @@ describe('ImportDeclaration', function () {
   })
 })
 
-describe.only('ExportDeclaration', function() {
+describe('ExportDeclaration', function() {
   require('./traverse.test.export.js').forEach(({ source, expected }) => {
     it(source, function () {
       const ast = parse(source)
@@ -28,4 +28,10 @@ describe.only('ExportDeclaration', function() {
       assert.deepStrictEqual(actual, expected)
     })
   })
+})
+
+describe.only('Scopes', function() {
+  source = fs.readFileSync(`${__dirname}/Scopes.js`, 'utf8')
+  const ast = parse(source)
+  traverse(ast, [])
 })

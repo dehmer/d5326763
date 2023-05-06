@@ -72,10 +72,15 @@ const kind = R.prop('kind')
 
 const visitor = {}
 
-visitor.Program = ({ node }, state) => state({
-  type: type(node),
-  filename: filename(node)
-})
+visitor.Program = (path, state) => {
+  const { scope, node } = path
+  console.log('[Program]', Object.keys(path))
+  console.log('[Program/scope]', Object.keys(scope), scope)
+  state({
+    type: type(node),
+    filename: filename(node)
+  })
+}
 
 visitor.ExportNamedDeclaration = ({ node }, state) => state({
   type: type(node),
@@ -144,11 +149,18 @@ visitor.ClassMethod = ({ node }, state) => state({
   filename: filename(node),
   key: key(node),
   kind: kind(node),
-  static: static(node)  
+  static: static(node)
 })
 
-// visitor.BlockStatement = ({ node, parent }, state) => {
-//   if (parent.type === 'ClassMethod') console.log('BlockStatement', node)
-// }
+visitor.BlockStatement = (path, state) => {
+  const { scope, node } = path
+  const bindings = Object.entries(scope.bindings)
+  const references = Object.entries(scope.references)
+  // console.log('[BlockStatement]', Object.keys(path))
+  // console.log('[BlockStatement/scope]', Object.keys(scope), scope)
+  console.log('[BlockStatement/path]', Object.keys(scope.path), scope.path)
+  // console.log('[BlockStatement/bindings]', scope.uid, bindings)
+  // console.log('[BlockStatement/references]', scope.uid, references)
+}
 
 module.exports = traverse
