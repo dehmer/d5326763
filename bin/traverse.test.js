@@ -30,7 +30,7 @@ describe('ExportDeclaration', function() {
   })
 })
 
-describe.only('Scopes', function() {
+describe('Scopes', function() {
   source = fs.readFileSync(`${__dirname}/Scopes.js`, 'utf8')
   const ast = parse(source)
   traverse(ast, [])

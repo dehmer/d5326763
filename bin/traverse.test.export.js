@@ -37,10 +37,8 @@ module.exports = [
   {
     source: 'export class ClassName { /* … */ }',
     expected: [
-      {
-        type: 'ExportNamedDeclaration',
-        declaration: [ 'ClassName' ]
-      }
+      { type: 'ExportNamedDeclaration', declaration: [ 'ClassName' ] },
+      { type: 'ClassDeclaration', id: 'ClassName' }
     ]
   },
   {
@@ -129,7 +127,8 @@ module.exports = [
   {
     source: 'export default class ClassName { /* … */ }',
     expected:  [
-      { type: 'ExportDefaultDeclaration', declaration: [ 'ClassName' ] }
+      { type: 'ExportDefaultDeclaration', declaration: [ 'ClassName' ] },
+      { type: 'ClassDeclaration', id: 'ClassName' }
     ]
   },
   {
@@ -150,7 +149,8 @@ module.exports = [
   {
     source: 'export default class { /* … */ }',
     expected: [
-      { type: 'ExportDefaultDeclaration', declaration: [] }
+      { type: 'ExportDefaultDeclaration', declaration: [] },
+      { type: 'ClassDeclaration' }
     ]
   },
   {
