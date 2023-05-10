@@ -4,6 +4,7 @@ const R = require('ramda')
 const { globSync: glob } = require('glob')
 const parser = require('@babel/parser')
 const traverse = require('./traverse')
+const symbols = require('./symbols')
 
 const filenames = glob('src/ol/**/*.js')
 const readFile = filename => ({ filename, source: fs.readFileSync(filename, 'utf8') })
@@ -12,7 +13,7 @@ const parseCode = file => parser.parse(file.source, parserOptions(file.filename)
 const script = file => parseCode(file)
 
 const moduleRelations = R.compose(
-  R.map(traverse),
+  R.map(symbols),
   R.map(script),
   R.map(readFile),
   R.filter(filename => filename === 'src/ol/Map.js')

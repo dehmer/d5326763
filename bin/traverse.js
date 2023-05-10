@@ -18,11 +18,6 @@ const traverse = (ast, excludes = []) => {
 
 const typeEq = name => R.propEq(name, 'type')
 
-// Node -> String
-const type = R.prop('type')
-
-// filename :: Node -> String
-const filename = R.path(['loc', 'filename'])
 
 // source :: ImportDeclaration => String
 const source = R.path(['source', 'value'])
@@ -61,8 +56,6 @@ const id = R.path(['id', 'name'])
 // superClass :: ClassDeclaration -> String
 const superClass = R.path(['superClass', 'name'])
 
-// key :: ClassMethod -> String
-const key = R.path(['key', 'name'])
 
 // static :: ClassMethod -> Boolean
 const static = R.prop('static')
@@ -70,17 +63,18 @@ const static = R.prop('static')
 // kind :: ClassMethod -> String
 const kind = R.prop('kind')
 
+
 const visitor = {}
 
-visitor.Program = (path, state) => {
-  const { scope, node } = path
-  console.log('[Program]', Object.keys(path))
-  console.log('[Program/scope]', Object.keys(scope), scope)
-  state({
-    type: type(node),
-    filename: filename(node)
-  })
-}
+// visitor.Program = (path, state) => {
+//   const { scope, node } = path
+//   console.log('[Program]', Object.keys(path))
+//   console.log('[Program/scope]', Object.keys(scope), scope)
+//   state({
+//     type: type(node),
+//     filename: filename(node)
+//   })
+// }
 
 visitor.ExportNamedDeclaration = ({ node }, state) => state({
   type: type(node),
@@ -152,15 +146,25 @@ visitor.ClassMethod = ({ node }, state) => state({
   static: static(node)
 })
 
-visitor.BlockStatement = (path, state) => {
-  const { scope, node } = path
-  const bindings = Object.entries(scope.bindings)
-  const references = Object.entries(scope.references)
-  // console.log('[BlockStatement]', Object.keys(path))
-  // console.log('[BlockStatement/scope]', Object.keys(scope), scope)
-  console.log('[BlockStatement/path]', Object.keys(scope.path), scope.path)
-  // console.log('[BlockStatement/bindings]', scope.uid, bindings)
-  // console.log('[BlockStatement/references]', scope.uid, references)
+// visitor.AssignmentExpression = (path, state) => {
+//   const { node } = path
+//   console.log('[AssignmentExpression]', node)
+// }
+
+visitor.MemberExpression = (path, state) => {
+  const { node, parent } = path
+  console.log('[MemberExpression]', property(node), parent.type)
 }
+
+// visitor.BlockStatement = (path, state) => {
+//   const { scope, node } = path
+//   const bindings = Object.entries(scope.bindings)
+//   const references = Object.entries(scope.references)
+//   // console.log('[BlockStatement]', Object.keys(path))
+//   // console.log('[BlockStatement/scope]', Object.keys(scope), scope)
+//   console.log('[BlockStatement/path]', Object.keys(scope.path), scope.path)
+//   // console.log('[BlockStatement/bindings]', scope.uid, bindings)
+//   // console.log('[BlockStatement/references]', scope.uid, references)
+// }
 
 module.exports = traverse
